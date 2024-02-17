@@ -1,0 +1,107 @@
+<!DOCTYPE HTML><html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script
+      src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+
+    <link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css"
+      integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
+      crossorigin="anonymous">
+    <style>
+    
+    html {
+     font-family: Roboto, Arial, sans-serif;
+     display: inline-block;
+     margin: 0px auto;
+     text-align: center;
+    }
+    h2 { font-size: 1.0rem; 
+       font-family: Arial;
+      text-align: center;
+      font-weight: normal;
+      color: #333333;
+      font-weight: bold;
+    }   
+     .btn {
+    background-color:rgba(0, 0, 0, 0);
+    border: 1px solid #00acc1;
+    box-sizing:border-box;
+    outline-color:#00acc1;
+    text-decoration:none;
+      color: #00acc1;
+      border-radius: 4px;
+      padding: 9px 16px;
+      background-image: none;
+      letter-spacing:1.0px;
+      cursor: pointer;
+      text-transform:uppercase;
+      font-size:14px;
+      line-height: 18px;
+      display: inline-block;
+      vertical-align: middle;
+     }
+    .btn:hover {
+   background-color:rgba(0, 172, 193, 0.04);
+    }
+    .btn:visited {
+      color: #00acc1;
+    }
+     .btn:active {
+   background-color:rgba(0, 172, 193, 0.09);
+    }
+ html {font-family: Arial; display: inline-block; text-align: center;}
+    h2 {font-size: 2.3rem;}
+    p {font-size: 1.9rem;}
+    /* body {max-width: 600px; margin:0px auto; padding-bottom: 25px;} */
+    .slider { appearance: none;
+  -webkit-appearance: none; margin: 14px; width: 360px; height: 25px; background: #FFD65C;
+      outline: none; -webkit-transition: .2s; transition: opacity .2s;}
+    .slider::-webkit-slider-thumb {-webkit-appearance: none; appearance: none; width: 35px; height: 35px; background: #003249; cursor: pointer;}
+    .slider::-moz-range-thumb { width: 35px; height: 35px; background: #003249; cursor: pointer; } 
+
+
+  </style>
+  </head>
+  <body>
+    <div class="container mt-3">
+      <h2>OTA Firmware update & File management</h2>
+      <title>Firmware update</title>
+      <p align="center">
+        <a class="btn" href="/testpage">TESTPAGE</a>
+        <a class="btn" href="/update">Загрузить</a>
+
+        <a class="btn" href="/off"><img src="nazad_32.png"></a>
+        <a class="btn" href="/on"><img src="vpered32.png"></a>
+      </p>
+      <!-- <p><span id="textSliderValue">%SLIDERVALUE%</span></p>
+      <p><input type="range" onchange="updateSliderPWM(this)" id="pwmSlider"
+          min="0" max="20" value="%SLIDERVALUE%" step="1" class="slider"></p> -->
+      <script>
+function updateSliderPWM(element) {
+  var sliderValue = document.getElementById("pwmSlider").value;
+  document.getElementById("textSliderValue").innerHTML = sliderValue;
+  console.log(sliderValue);
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "/slider?value="+sliderValue, true);
+  xhr.send();
+}
+</script>
+      %nameST%
+    </div>
+    <script>
+$(document).ready(function(){
+    $('a[data-toggle="tab"]').on('show.bs.tab', function(e) {
+        localStorage.setItem('activeTab', $(e.target).attr('href'));
+    });
+    var activeTab = localStorage.getItem('activeTab');
+    if(activeTab){
+        $('#myTab a[href="' + activeTab + '"]').tab('show');
+    }
+});
+
+
+</script>
+  </body>
+</html>
