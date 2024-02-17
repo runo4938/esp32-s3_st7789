@@ -5,7 +5,6 @@
 
 int volume = 15;
 
-
 Audio audio;
 
 #define I2S_DOUT 16 // 27 // 18 // DIN connection
@@ -18,25 +17,25 @@ Audio audio;
 #define DT 3  //  //
 #define SW 8  //  //
 
-
 // Radio
 uint8_t NEWStation = 0;
 uint8_t OLDStation = 1;
-int numbStations = 30;      // количество радиостанций
+int numbStations = 30;     // количество радиостанций
 String displayStations[8]; // Массив для станций на дисплее
-String StationList[30];     // Всего станций
-String nameStations[30];    // Наименования станций
+String StationList[30];    // Всего станций
+String nameStations[30];   // Наименования станций
 EncButton enc1(CLK, DT, SW);
 
 // Weather
-String apikey = F("30a9767f8d62e95546ea92a956457507"); // API key             "30a9767f8d62e95546ea92a956457507";
-String Latitude = F("44.0511");
-String Longitude = F("44.5408");
+String apikey = F("30a9767f8d62e95546ea92a956457507"); // API key
+String Latitude = F("44.0511");                        //
+String Longitude = F("44.5408");                       //
+String lang = F("&lang=en");                           // this is your language
 
 bool first = true; // Вывести дату и день недели
 // bool http_acp = true;
-int y1_random;
-int y2_random;
+//int y1_random;
+//int y2_random;
 bool rnd = true; // для случ числа
                  // Прошлое значение индикатора
 int x1_lev;

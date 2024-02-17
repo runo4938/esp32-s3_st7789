@@ -2,7 +2,6 @@
 #include <TFT_eSPI.h>
 #include <Audio.h>
 #include <EEPROM.h>
-// #include "vs1053_ext.h"
 #include <settings.h>
 #include <Update.h>
 #include <ESPmDNS.h>
@@ -54,10 +53,9 @@ int stanonMenu;
 bool stations;                 // Станция вверх или вниз (true or false)
 bool showRadio = true;         // show radio or menu of station,
 bool getClock = true;          // Получать время только при запуске
-unsigned long currentMillis;   // Для возврата из меню по истечении времении
+unsigned long currentMillis;   // To return from the menu after the time has expired
 unsigned long intervalForMenu; // Для возврата из меню по истечении времении
-bool f_startProgress = true;   // for starting
-void filePosition();
+bool f_startProgress = true;   // for initial values
 void notFound(AsyncWebServerRequest *request);
 String CurrentDate;
 uint8_t CurrentWeek;
@@ -69,7 +67,6 @@ String MessageToScroll_2 = F("It's two string for scrolling");
 int16_t width_txt;
 int16_t width_txtW;
 
-// int start_scroll = tft.width(); // За пределами экрана
 int x_scroll_L;
 int x_scroll_R;
 
@@ -81,8 +78,7 @@ GyverNTP ntp(3);
 AsyncWebServer server(80);
 
 //--filesystem --------------
-// unsigned long timer1;
-// unsigned long timer2;
+
 String filelist = "";
 String listRadio; // радиостанции на странице
 const char *PARAM = "file";
@@ -99,7 +95,7 @@ void getWeather();
 String WindDeg_Direction(int Wind_direction);
 bool decode_json(Stream &jsonStr);
 
-void scrollMainWeather(bool directTo, int left_coner_x, int left_coner_y, int speed_scroll);
+//void scrollMainWeather(bool directTo, int left_coner_x, int left_coner_y, int speed_scroll);
 void scrollMain(bool directTo, int left_coner_x, int left_coner_y, int speed_scroll);
 void Task1code(void *pvParameters);
 void printStation(uint8_t indexOfStation);
@@ -202,8 +198,7 @@ void setup()
     }
   }
   Serial.println("mDNS responder started");
-  // timer1 = millis();
-  // timer2 = millis();
+
   listDir(SPIFFS, "/", 0);
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
@@ -294,7 +289,6 @@ void setup()
   server.onNotFound(notFound);
   server.begin();
   Update.onProgress(printProgress);
-  //-------- end --filesystem------
 
   // The first connection
   ind = StationList[NEWStation].indexOf(space);
@@ -304,7 +298,7 @@ void setup()
   audio.connecttohost(sl); // переключаем станцию
   Serial.println(sl);
   OLDStation = NEWStation;  //
-  printStation(NEWStation); // вывести на экран название станции
+  printStation(NEWStation); // display the name of the station on the screen
   printCodecAndBitrate();
 
   // For CORE0
@@ -415,15 +409,14 @@ void loop()
       OLDStation = NEWStation;
     }
 
-    // Level volume
+    // vuMeter
     uint16_t volByte = audio.getVUlevel();
     if (rnd) // для выборки всех значений длины индикатора уровня
     {
       x1_lev = highByte(volByte); // получить число и отработать
-      x2_lev = lowByte(volByte);
-      // Serial.println(x2_lev);
-      if (x1_lev % 2 > 0)
-        x1_lev--; // на четность
+      x2_lev = lowByte(volByte);  //
+      if (x1_lev % 2 > 0)         //
+        x1_lev--;                 // for parity
       if (x2_lev % 2 > 0)
         x2_lev--; // на четность
       x1_lev = x1_lev + 162;
@@ -538,37 +531,37 @@ void scrollMain(bool directTo, int left_coner_x, int left_coner_y, int speed_scr
   }
 }
 
-void scrollMainWeather(bool directTo, int left_coner_x, int left_coner_y, int speed_scroll) // to loop
-{                                                                                           // в loop
-  delay(speed_scroll);
-  // Влево
-  if (!directTo)
-  {
-    MessageToScroll_2 += CurrentDate + "  " + weather.name + weather.temp;
-    WeatherSpr.drawString(MessageToScroll_2, x_scroll_LW, 2);
-    WeatherSpr.pushSprite(left_coner_x, left_coner_y); // Верхний левый угол спрайта
-    x_scroll_LW--;
-    x_scroll_RW = x_scroll_LW;                            // Влево
-    if (abs(x_scroll_LW) > width_txtW + TFT_HEIGHT + 300) //+ tft.width()
-    {
-      x_scroll_LW = TFT_HEIGHT + 300;
-      x_scroll_RW = -width_txtW - TFT_HEIGHT - 300;
-    }
-  }
-  // Вправо
-  if (directTo)
-  {
-    WeatherSpr.drawString(MessageToScroll_2, x_scroll_RW, 2);
-    WeatherSpr.pushSprite(left_coner_x, left_coner_y); // Верхний левый угол спрайта
-    x_scroll_RW++;
-    x_scroll_LW = x_scroll_RW;    // Вправо
-    if (x_scroll_RW > TFT_HEIGHT) //+ tft.width());
-    {
-      x_scroll_LW = TFT_HEIGHT;
-      x_scroll_RW = -width_txtW - TFT_HEIGHT - 300; // - tft.width();
-    }
-  }
-}
+// void scrollMainWeather(bool directTo, int left_coner_x, int left_coner_y, int speed_scroll) // to loop
+// {                                                                                           // в loop
+//   delay(speed_scroll);
+//   // Влево
+//   if (!directTo)
+//   {
+//     MessageToScroll_2 += CurrentDate + "  " + weather.name + weather.temp;
+//     WeatherSpr.drawString(MessageToScroll_2, x_scroll_LW, 2);
+//     WeatherSpr.pushSprite(left_coner_x, left_coner_y); // Верхний левый угол спрайта
+//     x_scroll_LW--;
+//     x_scroll_RW = x_scroll_LW;                            // Влево
+//     if (abs(x_scroll_LW) > width_txtW + TFT_HEIGHT + 300) //+ tft.width()
+//     {
+//       x_scroll_LW = TFT_HEIGHT + 300;
+//       x_scroll_RW = -width_txtW - TFT_HEIGHT - 300;
+//     }
+//   }
+//   // Вправо
+//   if (directTo)
+//   {
+//     WeatherSpr.drawString(MessageToScroll_2, x_scroll_RW, 2);
+//     WeatherSpr.pushSprite(left_coner_x, left_coner_y); // Верхний левый угол спрайта
+//     x_scroll_RW++;
+//     x_scroll_LW = x_scroll_RW;    // Вправо
+//     if (x_scroll_RW > TFT_HEIGHT) //+ tft.width());
+//     {
+//       x_scroll_LW = TFT_HEIGHT;
+//       x_scroll_RW = -width_txtW - TFT_HEIGHT - 300; // - tft.width();
+//     }
+//   }
+// }
 
 // Показать VUmeter
 void soundShow()
@@ -641,12 +634,10 @@ void clock_on_core0()
         }
       }
     }
-
     // Update digital time
     int xpos_clock = 105;
     int ypos_clock = 65; // Top left corner ot clock text, about half way down
     int ysecs_clock = ypos_clock;
-
     if (omm != mm || getClock == true)
     { // Redraw hours and minutes time every minute
       omm = mm;
@@ -917,7 +908,7 @@ void printStation(uint8_t indexOfStation)
 } // end PrintStation
 
 //----------------------------
-// Codec Bitrate
+// CodecName Bitrate
 //----------------------------
 void printCodecAndBitrate()
 {
@@ -942,6 +933,7 @@ void printCodecAndBitrate()
   EEPROM.commit();
 }
 
+// Next station
 void nextStation(bool stepStation)
 {
   if (stepStation)
@@ -1293,7 +1285,8 @@ void getWeather()
     host_uri += Latitude;
     host_uri += F("&lon=");
     host_uri += Longitude;
-    host_uri += F("&lang=ru&appid=");
+    host_uri += lang;
+    host_uri += F("&appid=");
     host_uri += apikey;
     host_uri += F("&mode=json&units=metric&cnt=1");
     client.stop();
@@ -1377,7 +1370,6 @@ String WindDeg_Direction(int Wind_direction)
     return Wind_NW; //"Северо-Западный";
   return " ?";
 } // end WindDeg_Direction
-//-- weather --
 
 // optional
 /* void audio_info(const char *info)
