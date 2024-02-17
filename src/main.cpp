@@ -38,11 +38,6 @@ uint16_t ind;
 String newSt;
 const String space = " ";
 
-// const char *ssidPath = "/ssid.txt";
-// const char *passPath = "/pass.txt";
-// const char *ssidPath_1 = "/ssid1.txt";
-// const char *passPath_1 = "/pass1.txt";
-
 WiFiManager wifiManager;
 
 HTTPClient http;
