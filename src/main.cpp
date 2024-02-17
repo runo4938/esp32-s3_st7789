@@ -1461,7 +1461,7 @@ void listStaton()
     int ind_to_scace = StationList[i].indexOf(space);
     String nameStat = StationList[i].substring(0, ind_to_scace);
 
-    String newStat = "https://" + StationList[i].substring(ind_to_scace + 1, StationList[i].length());
+    String newStat = StationList[i].substring(ind_to_scace + 1, StationList[i].length());
 
     partlistStation += String("<tr><td>") + String(i) + String("</td>") + String("<td>") + nameStat + String("</td>") + String("<td>") + newStat + String("</td></tr>");
     listRadio = String("<table class=\"table table-success table-striped\"> <thead><tr><th>№</th><th>Station name</th><th>Station url</th></tr></thead><tbody>") + partlistStation + String("</tbody></table>");
@@ -1651,7 +1651,7 @@ void lineondisp()
   tft.setFreeFont();
   tft.setTextSize(2);
   tft.setTextColor(TFT_LIGHTGREY, TFT_RED);
-  tft.drawString("C", 30, 20);
+  tft.drawString("C", 30, 17);
   tft.drawRect(70, 0, 250, 50, TFT_CYAN);
   // tft.drawRect(130, 0, 190, 50, TFT_CYAN);
   //  weather
