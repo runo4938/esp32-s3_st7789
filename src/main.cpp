@@ -374,6 +374,7 @@ void loop()
     showRadio = true;
     lineondisp();
     printCodecAndBitrate();
+    first=true;
   }
   if (showRadio)
   {
@@ -721,8 +722,8 @@ void myEncoder()
     {
       stations = false;
       nextStation(stations);
-      menuStation();
-      showStation(stanonMenu);
+      //menuStation();
+      stationDisplay(NEWStation);
       currentMillis = millis(); // Пока ходим по меню
     }
     // если меню
@@ -739,8 +740,8 @@ void myEncoder()
     {
       stations = true;
       nextStation(stations);
-      menuStation();
-      showStation(stanonMenu);
+     // menuStation();
+      stationDisplay(NEWStation);
       currentMillis = millis(); // Пока ходим по меню
     }
   }
@@ -753,8 +754,7 @@ void myEncoder()
     {
       currentMillis = millis(); // начало отсчета времени простоя
       tft.fillRect(0, 0, 320, ypos + 14, TFT_BLACK);
-      menuStation();
-      showStation(stanonMenu);
+      stationDisplay(NEWStation);
     }
     if (showRadio)
     {
@@ -794,18 +794,97 @@ void menuStation()
   while (i <= numbStations)
   { // list stations
     delay(1);
-    //StationList[i].replace("_", space);
     ind = StationList[i].indexOf(space);
     nameStations[i] = make_str(utf8rus(StationList[i].substring(0, ind))); // Получили наименования станций
-    // StationList[i].substring(0,ind);
-    // Serial.println(make_str(utf8rus(StationList[i].substring(0,ind))));
     i++;
   }
-  stationDisplay(NEWStation); // На формирование меню
 }
 //----------------------------------
 // ******* Menu stations ***********
 //----------------------------------
+void stationDisplay(int st)
+{
+  uint8_t i;
+  i = 0;
+  while (i < 7)
+  {
+    displayStations[i] = "";
+    i++;
+  }
+  tft.setTextSize(1);
+  tft.setFreeFont(&CourierCyr12pt8b);
+  tft.setTextColor(TFT_CYAN, TFT_BLACK);
+  // счетчик для меню
+  int stanonMenu = 3; // Положение текущей станции в меню
+  int k;              //
+  int p;              // счечик по листу станций
+  k = st - 3;
+  
+  if (k < 0 && k != -3)
+  {
+    p = numbStations + k + 1;
+    i = 0;
+    while (p <= numbStations)
+    {
+      displayStations[i] = nameStations[p];
+      i++;
+      p++;
+    }
+    p = 0;
+    while (i <= 7)
+    {
+      displayStations[i] = nameStations[p];
+      i++;
+      p++;
+    }
+  }
+
+  if (k == -3)
+  {
+    i = 0;
+    p = numbStations - 2;
+    while (i <= 2)
+    {
+      displayStations[i] = nameStations[p];
+      i++;
+      p++;
+    }
+    p = 0;
+    while (i <= 7)
+    {
+      displayStations[i] = nameStations[p];
+      i++;
+      p++;
+    }
+  }
+  p = k;
+  if (k >= 0)
+  {
+    i = 0;
+    while (i <= 7)
+    {
+      displayStations[i] = nameStations[p];
+      p++;
+      i++;
+      if (p == numbStations + 1)
+        p = 0;
+    }
+  }
+  // выводим на дисплей
+  i = 0;
+  k = 5;
+  while (i <= 7)
+  {
+    tft.fillRect(65, k, 246, 25, TFT_BLACK);
+    tft.drawString(utf8rus(displayStations[i]), 65, k);
+    i++;
+    k = k + 25;
+  }
+  tft.fillRect(65, stanonMenu * 25, 246, 27, TFT_YELLOW);
+  tft.setTextColor(TFT_BLACK, TFT_YELLOW);
+  tft.drawString(utf8rus(displayStations[stanonMenu]), 65, stanonMenu * 25);
+}
+/*
 void stationDisplay(int st)
 { // в st - номер радиостанции
   tft.setTextSize(1);
@@ -878,7 +957,7 @@ void showStation(int s)
   tft.textWidth(displayStations[s]); //--------
   tft.drawString(utf8rus(displayStations[s]), 65, s * 25);
 }
-
+*/
 // Разделитель минут и секунд
 void drawlineClock()
 { //             x    y    x    y
@@ -999,6 +1078,7 @@ void initSpiffs()
   }
   myFile.close();
   numbStations = i - 1; // start numb station
+  menuStation();
   listStaton();
 }
 
