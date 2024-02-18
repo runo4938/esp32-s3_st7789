@@ -1220,9 +1220,9 @@ void audio_showstreamtitle(const char *info)
 {
   Serial.println(info);
   txtSprite.fillSprite(TFT_BLACK);
+  MessageToScroll_1 = F(" ");
+  MessageToScroll_1 += info;
   MessageToScroll_1 += F(" ");
-  MessageToScroll_1 = info;
-  MessageToScroll_1 += " ";
   MessageToScroll_1 = utf8rus(MessageToScroll_1);
   txtSprite.setTextSize(1);
   width_txt = tft.textWidth(MessageToScroll_1);
