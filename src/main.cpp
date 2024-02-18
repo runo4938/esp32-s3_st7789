@@ -772,23 +772,15 @@ void myEncoder()
     calendar = true;
     showRadio = false;
     drawCalendar();
-    // WiFi.disconnect(false, true);
-    // wifiManager.resetSettings();
-    // Serial.println("Reseting creditals password.");
-    // delay(1000);
-    // ESP.restart();
+    
   }
-  if (enc1.step(3))
+  if (enc1.leftH())
   {
-    showRadio = true;
-    calendar = false;
-    f_startProgress = true;
-    first = true;
-    tft.fillRect(0, 0, 320, ypos + 8, TFT_BLACK);
-    printStation(NEWStation);
-    getClock = true; // получить время при переходе от меню станций
-    lineondisp();
-    printCodecAndBitrate();
+    WiFi.disconnect(false, true);
+    wifiManager.resetSettings();
+    Serial.println("Reseting creditals password.");
+    delay(1000);
+    ESP.restart();
   }
 }
 
