@@ -767,14 +767,13 @@ void myEncoder()
     }
   }
 
-  if (enc1.holding())
+  if (enc1.rightH())
   {
     calendar = true;
     showRadio = false;
     drawCalendar();
-    
   }
-  if (enc1.leftH())
+  if (enc1.step(2))
   {
     WiFi.disconnect(false, true);
     wifiManager.resetSettings();
@@ -795,7 +794,7 @@ void menuStation()
   while (i <= numbStations)
   { // list stations
     delay(1);
-    StationList[i].replace("_", space);
+    //StationList[i].replace("_", space);
     ind = StationList[i].indexOf(space);
     nameStations[i] = make_str(utf8rus(StationList[i].substring(0, ind))); // Получили наименования станций
     // StationList[i].substring(0,ind);
@@ -804,7 +803,6 @@ void menuStation()
   }
   stationDisplay(NEWStation); // На формирование меню
 }
-
 //----------------------------------
 // ******* Menu stations ***********
 //----------------------------------
@@ -1687,7 +1685,7 @@ String months[13] = {"", "Январь", "Февраль", "Март", "Апре
 void drawCalendar()
 {
   showRadio = false;
-  tft.fillRect(0, 52, 318, 140, TFT_GREENYELLOW);
+  tft.fillRect(0, 52, 318, 140, TFT_LIGHTGREY);
   tft.drawRect(0, 52, 318, 140, 0x9772);
   // display a full month on a calendar
   tft.setFreeFont(&CourierCyr10pt8b);
