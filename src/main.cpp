@@ -50,7 +50,6 @@ int xpos = 0;
 String bitrate;
 
 bool calendar = false;
-int stanonMenu;
 bool stations;                 // Станция вверх или вниз (true or false)
 bool showRadio = true;         // show radio or menu of station,
 bool getClock = true;          // Получать время только при запуске
@@ -145,7 +144,7 @@ void setup()
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.setTextSize(2);
   tft.setCursor(40, 60);
-  tft.print("Starting Radio ......");
+  tft.println("Starting Radio...");
 
   readEEprom();
   initSpiffs();
@@ -374,7 +373,7 @@ void loop()
     showRadio = true;
     lineondisp();
     printCodecAndBitrate();
-    first=true;
+    first = true;
   }
   if (showRadio)
   {
@@ -722,7 +721,7 @@ void myEncoder()
     {
       stations = false;
       nextStation(stations);
-      //menuStation();
+      // menuStation();
       stationDisplay(NEWStation);
       currentMillis = millis(); // Пока ходим по меню
     }
@@ -740,7 +739,7 @@ void myEncoder()
     {
       stations = true;
       nextStation(stations);
-     // menuStation();
+      // menuStation();
       stationDisplay(NEWStation);
       currentMillis = millis(); // Пока ходим по меню
     }
@@ -753,7 +752,7 @@ void myEncoder()
     if (!showRadio)
     {
       currentMillis = millis(); // начало отсчета времени простоя
-      tft.fillRect(0, 0, 320, ypos + 14, TFT_BLACK);
+      tft.fillRect(3, 3, 315, 190, TFT_BLACK);
       stationDisplay(NEWStation);
     }
     if (showRadio)
@@ -806,7 +805,7 @@ void stationDisplay(int st)
 {
   uint8_t i;
   i = 0;
-  while (i < 7)
+  while (i < 6)
   {
     displayStations[i] = "";
     i++;
@@ -819,7 +818,7 @@ void stationDisplay(int st)
   int k;              //
   int p;              // счечик по листу станций
   k = st - 3;
-  
+
   if (k < 0 && k != -3)
   {
     p = numbStations + k + 1;
@@ -831,7 +830,7 @@ void stationDisplay(int st)
       p++;
     }
     p = 0;
-    while (i <= 7)
+    while (i <= 6)
     {
       displayStations[i] = nameStations[p];
       i++;
@@ -850,7 +849,7 @@ void stationDisplay(int st)
       p++;
     }
     p = 0;
-    while (i <= 7)
+    while (i <= 6)
     {
       displayStations[i] = nameStations[p];
       i++;
@@ -861,7 +860,7 @@ void stationDisplay(int st)
   if (k >= 0)
   {
     i = 0;
-    while (i <= 7)
+    while (i <= 6)
     {
       displayStations[i] = nameStations[p];
       p++;
@@ -872,92 +871,19 @@ void stationDisplay(int st)
   }
   // выводим на дисплей
   i = 0;
-  k = 5;
-  while (i <= 7)
+  k = 10;
+  while (i <= 6)
   {
     tft.fillRect(65, k, 246, 25, TFT_BLACK);
     tft.drawString(utf8rus(displayStations[i]), 65, k);
     i++;
     k = k + 25;
   }
-  tft.fillRect(65, stanonMenu * 25, 246, 27, TFT_YELLOW);
+  tft.fillRect(65, (stanonMenu * 25)+10, 246, 27, TFT_YELLOW);
   tft.setTextColor(TFT_BLACK, TFT_YELLOW);
-  tft.drawString(utf8rus(displayStations[stanonMenu]), 65, stanonMenu * 25);
+  tft.drawString(utf8rus(displayStations[stanonMenu]), 65, (stanonMenu * 25)+10);
 }
-/*
-void stationDisplay(int st)
-{ // в st - номер радиостанции
-  tft.setTextSize(1);
-  tft.setFreeFont(&CourierCyr12pt8b);
-  tft.setTextColor(TFT_CYAN, TFT_BLACK);
-  int i; // Положение станции в меню
-  int k; // Номер станции в общем списке
-  int f; // Всего станций в меню
-  // собираем меню станций 3 вниз, 4 вверх
-  // если номер станции больше 3 к верху
-  f = 0;
-  k = st;
-  i = 4;
-  stanonMenu = i; // Положение текущей станции в меню
-  // Вниз по списку
-  while (f <= 7 && k <= numbStations && i <= 7) // Пока не достигнут конец списка Вперед по списку
-  {
-    displayStations[i] = nameStations[k];
-    i++; // Номер в списке дисплея
-    k++; // Номер в общем списке
-    f++; // Всего в списке дисплея
-  }
-  k = 0;
-  while (f <= 7 && k <= numbStations && i <= 7) // Пока не достигнут конец списка Вперед по списку
-  {
-    displayStations[i] = nameStations[k];
-    i++; // Номер в списке дисплея
-    k++; // Номер в общем списке
-    f++; // Всего в списке дисплея
-  }
-  // Вверх по списку
-  i = 3;
-  if (k = 0)
-  {
-    k = numbStations;
-  }
-  else
-  {
-    k = st - 1;
-  }
-  while (i >= 0 && k >= 0)
-  {
-    displayStations[i] = nameStations[k];
-    i--;
-    k--;
-  }
-  // Дописываем  список дисплея с конца общего списка
-  k = numbStations;
-  while (i >= 0)
-  {
-    displayStations[i] = nameStations[k];
-    i--;
-    k--;
-  }
-  // выводим на дисплей
-  i = 0;
-  k = 5;
-  while (i <= 7)
-  {
-    tft.drawString(utf8rus(displayStations[i]), 65, k);
-    i++;
-    k = k + 25;
-  }
-}
-// пришли с номером станции по экрану
-void showStation(int s)
-{
-  tft.setTextColor(TFT_BLACK, 0x9772);
-  // Serial.println(utf8rus(displayStations[s]));
-  tft.textWidth(displayStations[s]); //--------
-  tft.drawString(utf8rus(displayStations[s]), 65, s * 25);
-}
-*/
+
 // Разделитель минут и секунд
 void drawlineClock()
 { //             x    y    x    y
@@ -1765,13 +1691,13 @@ String months[13] = {"", "Январь", "Февраль", "Март", "Апре
 void drawCalendar()
 {
   showRadio = false;
-  tft.fillRect(0, 52, 318, 140, TFT_LIGHTGREY);
-  tft.drawRect(0, 52, 318, 140, 0x9772);
+  tft.fillRect(2, 52, 316, 140, TFT_LIGHTGREY);
+  tft.drawRect(2, 52, 316, 140, 0x9772);
   // display a full month on a calendar
   tft.setFreeFont(&CourierCyr10pt8b);
   tft.setTextSize(1);
   tft.setTextColor(TFT_BLACK);
-  tft.drawString(utf8rus(months[ntp.month()]) + " " + ntp.year()+" г.", 20, 55);
+  tft.drawString(utf8rus(months[ntp.month()]) + " " + ntp.year() + utf8rus(" г."), 20, 55);
   tft.drawString(utf8rus("Пн Вт Ср Чт Пт Сб Вс"), 5, 75);
   // display this month
 
