@@ -46,7 +46,7 @@ int y_show = 122;
 
 unsigned long lastTime = 0;
 unsigned long lastTime_ssid = 0;
-unsigned long timerDelay_ssid = 5000;
+unsigned long timerDelay_ssid = 4000;
 
 uint32_t vumetersDelay = 250;
 // unsigned long previousMillis = 0;

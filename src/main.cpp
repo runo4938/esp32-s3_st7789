@@ -49,6 +49,7 @@ int xpos = 0;
 
 String bitrate;
 
+bool calendar = false;
 int stanonMenu;
 bool stations;                 // Станция вверх или вниз (true or false)
 bool showRadio = true;         // show radio or menu of station,
@@ -95,8 +96,9 @@ void getWeather();
 String WindDeg_Direction(int Wind_direction);
 bool decode_json(Stream &jsonStr);
 
-//void scrollMainWeather(bool directTo, int left_coner_x, int left_coner_y, int speed_scroll);
+// void scrollMainWeather(bool directTo, int left_coner_x, int left_coner_y, int speed_scroll);
 void scrollMain(bool directTo, int left_coner_x, int left_coner_y, int speed_scroll);
+void scrollMainWeather(bool directTo, int left_coner_x, int left_coner_y, int speed_scroll);
 void Task1code(void *pvParameters);
 void printStation(uint8_t indexOfStation);
 void printCodecAndBitrate();
@@ -113,6 +115,8 @@ void clock_on_core0();
 void drawlineClock();
 void soundShow();
 void lineondisp();
+int startDayOfWeek(int y, int m, int d);
+void drawCalendar();
 String make_str(String str);
 String utf8rus(String source);
 String readFile(fs::FS &fs, const char *path);
@@ -348,7 +352,7 @@ void Task1code(void *pvParameters)
 unsigned long timer_prev = 0;
 int timer_interval = 2000;
 bool allow = true;
-int timer_interval_W = 6000;
+int timer_interval_W = 4000;
 bool allow_W = true;
 bool direct, direct1;
 int x_sprite = 65;
@@ -359,7 +363,7 @@ void loop()
 
   // для возврата из меню
   intervalForMenu = millis() - currentMillis;
-  if (intervalForMenu > 10000 && showRadio == false) // если время истекло
+  if (intervalForMenu > 10000 && showRadio == false && calendar == false) // если время истекло
   {
     // stations = false;
     tft.fillRect(0, 0, 320, ypos + 8, TFT_BLACK);
@@ -436,9 +440,10 @@ void loop()
       }
       soundShow();
       vumetersDelay = millis() + 25;
-    }
+    } //-----end vumeter
+      // Scrolling
     unsigned long timer_curr = millis();
-    if (timer_curr - timer_prev >= timer_interval)
+    if (timer_curr - timer_prev >= timer_interval) // 2 sec
     {
       allow = !allow;
       timer_prev = timer_curr;
@@ -446,7 +451,7 @@ void loop()
       wifiLevel();
     }
     // Time for weather
-    if (timer_curr - timer_prev >= timer_interval_W)
+    if (timer_curr - timer_prev >= timer_interval_W) // 4sec
     {
       allow_W = !allow_W;
       timer_prev = timer_curr;
@@ -456,6 +461,10 @@ void loop()
     {
       scrollMain(direct, 71, 23, 3);
     }
+    // if (allow_W && ssid_show == 4)
+    // {
+    //   scrollMainWeather(direct1, 5, 210, 3);
+    // }
     if ((millis() - lastTime_ssid) > timerDelay_ssid)
     {
       printCodecAndBitrate();
@@ -531,37 +540,37 @@ void scrollMain(bool directTo, int left_coner_x, int left_coner_y, int speed_scr
   }
 }
 
-// void scrollMainWeather(bool directTo, int left_coner_x, int left_coner_y, int speed_scroll) // to loop
-// {                                                                                           // в loop
-//   delay(speed_scroll);
-//   // Влево
-//   if (!directTo)
-//   {
-//     MessageToScroll_2 += CurrentDate + "  " + weather.name + weather.temp;
-//     WeatherSpr.drawString(MessageToScroll_2, x_scroll_LW, 2);
-//     WeatherSpr.pushSprite(left_coner_x, left_coner_y); // Верхний левый угол спрайта
-//     x_scroll_LW--;
-//     x_scroll_RW = x_scroll_LW;                            // Влево
-//     if (abs(x_scroll_LW) > width_txtW + TFT_HEIGHT + 300) //+ tft.width()
-//     {
-//       x_scroll_LW = TFT_HEIGHT + 300;
-//       x_scroll_RW = -width_txtW - TFT_HEIGHT - 300;
-//     }
-//   }
-//   // Вправо
-//   if (directTo)
-//   {
-//     WeatherSpr.drawString(MessageToScroll_2, x_scroll_RW, 2);
-//     WeatherSpr.pushSprite(left_coner_x, left_coner_y); // Верхний левый угол спрайта
-//     x_scroll_RW++;
-//     x_scroll_LW = x_scroll_RW;    // Вправо
-//     if (x_scroll_RW > TFT_HEIGHT) //+ tft.width());
-//     {
-//       x_scroll_LW = TFT_HEIGHT;
-//       x_scroll_RW = -width_txtW - TFT_HEIGHT - 300; // - tft.width();
-//     }
-//   }
-// }
+void scrollMainWeather(bool directTo, int left_coner_x, int left_coner_y, int speed_scroll) // to loop
+{                                                                                           // в loop
+  delay(speed_scroll);
+  // Влево
+  if (!directTo)
+  {
+    MessageToScroll_2 += CurrentDate + "  " + weather.name + weather.temp;
+    WeatherSpr.drawString(MessageToScroll_2, x_scroll_LW, 2);
+    WeatherSpr.pushSprite(left_coner_x, left_coner_y); // Верхний левый угол спрайта
+    x_scroll_LW--;
+    x_scroll_RW = x_scroll_LW;                            // Влево
+    if (abs(x_scroll_LW) > width_txtW + TFT_HEIGHT + 300) //+ tft.width()
+    {
+      x_scroll_LW = TFT_HEIGHT + 300;
+      x_scroll_RW = -width_txtW - TFT_HEIGHT - 300;
+    }
+  }
+  // Вправо
+  if (directTo)
+  {
+    WeatherSpr.drawString(MessageToScroll_2, x_scroll_RW, 2);
+    WeatherSpr.pushSprite(left_coner_x, left_coner_y); // Верхний левый угол спрайта
+    x_scroll_RW++;
+    x_scroll_LW = x_scroll_RW;    // Вправо
+    if (x_scroll_RW > TFT_HEIGHT) //+ tft.width());
+    {
+      x_scroll_LW = TFT_HEIGHT;
+      x_scroll_RW = -width_txtW - TFT_HEIGHT - 300; // - tft.width();
+    }
+  }
+}
 
 // Показать VUmeter
 void soundShow()
@@ -699,9 +708,8 @@ void clock_on_core0()
 //-------------------
 void myEncoder()
 {
-  uint8_t audioVol = audio.getVolume();
   enc1.tick();
-  if (enc1.right())
+  if (enc1.right() && calendar == false)
   {
     if (showRadio)
     {
@@ -719,7 +727,7 @@ void myEncoder()
     }
     // если меню
   }
-  if (enc1.left())
+  if (enc1.left() && calendar == false)
   {
     if (showRadio)
     {
@@ -739,6 +747,7 @@ void myEncoder()
   if (enc1.click())
   { // Меню станций
     showRadio = !showRadio;
+    calendar = false;
     f_startProgress = true; // for starting
     if (!showRadio)
     {
@@ -757,23 +766,29 @@ void myEncoder()
       printCodecAndBitrate();
     }
   }
-  if (enc1.leftH())
+
+  if (enc1.holding())
   {
-    audioVol--;
-    audio.setVolume(audioVol);
+    calendar = true;
+    showRadio = false;
+    drawCalendar();
+    // WiFi.disconnect(false, true);
+    // wifiManager.resetSettings();
+    // Serial.println("Reseting creditals password.");
+    // delay(1000);
+    // ESP.restart();
   }
-  if (enc1.rightH())
+  if (enc1.step(3))
   {
-    audioVol++;
-    audio.setVolume(audioVol);
-  }
-  if (enc1.step())
-  {
-    WiFi.disconnect(false, true);
-    wifiManager.resetSettings();
-    Serial.println("Reseting creditals password.");
-    delay(1000);
-    ESP.restart();
+    showRadio = true;
+    calendar = false;
+    f_startProgress = true;
+    first = true;
+    tft.fillRect(0, 0, 320, ypos + 8, TFT_BLACK);
+    printStation(NEWStation);
+    getClock = true; // получить время при переходе от меню станций
+    lineondisp();
+    printCodecAndBitrate();
   }
 }
 
@@ -1663,3 +1678,209 @@ void lineondisp()
   tft.drawString("CSS", 97, 132);
   tft.drawRect(0, 202, 320, 38, TFT_CYAN);
 }
+
+int startDay = 1; // Sunday's value is 0, Saturday is 6
+String week1 = "";
+String week2 = "";
+String week3 = "";
+String week4 = "";
+String week5 = "";
+int newWeekStart = 1; // used to show start of next week of the month
+char monthString2[37] = {"JanFebMarAprMayJunJulAugSepOctNovDec"};
+int monthIndex2[122] = {0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33};
+char monthName2[3] = "";
+int monthLength = 0;
+String months[13] = {"", "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"};
+
+void drawCalendar()
+{
+  showRadio = false;
+  tft.fillRect(0, 52, 318, 140, TFT_GREENYELLOW);
+  tft.drawRect(0, 52, 318, 140, 0x9772);
+  // display a full month on a calendar
+  tft.setFreeFont(&CourierCyr10pt8b);
+  tft.setTextSize(1);
+  tft.setTextColor(TFT_BLACK);
+  tft.drawString(utf8rus(months[ntp.month()]) + " " + ntp.year()+" г.", 20, 55);
+  tft.drawString(utf8rus("Пн Вт Ср Чт Пт Сб Вс"), 5, 75);
+  // display this month
+
+  // get number of days in month
+  if (ntp.month() == 1 || ntp.month() == 3 || ntp.month() == 5 || ntp.month() == 7 || ntp.month() == 8 || ntp.month() == 10 || ntp.month() == 12)
+  {
+    monthLength = 31;
+  }
+  else
+  {
+    monthLength = 30;
+  }
+  if (ntp.month() == 2)
+  {
+    monthLength = 28;
+  }
+  startDay = startDayOfWeek(ntp.year(), ntp.month(), 1); // Sunday's value is 0
+  // now build first week string
+  switch (startDay)
+  {
+  case 1:
+    // Sunday
+    week1 = " 1  2  3  4  5  6  7";
+    break;
+  case 2:
+    // Monday
+    week1 = "    1  2  3  4  5  6";
+    break;
+  case 3:
+    // Tuesday
+    week1 = "       1  2  3  4  5";
+    break;
+  case 4:
+    // Wednesday
+    week1 = "          1  2  3  4";
+    break;
+  case 5:
+    // Thursday
+    week1 = "             1  2  3";
+    break;
+  case 6:
+    // Friday
+    if (monthLength == 28 || monthLength == 30)
+    {
+      week1 = "                1  2";
+    }
+    if (monthLength == 31)
+    {
+      week1 = "31              1  2";
+    }
+    break;
+  case 0:
+    // Saturday
+    if (monthLength == 28)
+    {
+      week1 = "                   1";
+    }
+    if (monthLength == 30)
+    {
+      week1 = "30                 1";
+    }
+    if (monthLength == 31)
+    {
+      week1 = "30 31              1";
+    }
+
+    break;
+  } // end first week
+  newWeekStart = (7 - startDay) + 2;
+  const char *newWeek1 = (const char *)week1.c_str();
+  tft.drawString(newWeek1, 5, 95);
+  // display week 2
+  week2 = "";
+  for (int f = newWeekStart; f < newWeekStart + 7; f++)
+  {
+    if (f < 10)
+    {
+      week2 = week2 + " " + String(f) + " ";
+    }
+    else
+    {
+      week2 = week2 + String(f) + " ";
+    }
+  }
+  const char *newWeek2 = (const char *)week2.c_str();
+  tft.drawString(newWeek2, 5, 115);
+  // display week 3
+  newWeekStart = (14 - startDay) + 2;
+  week3 = "";
+  for (int f = newWeekStart; f < newWeekStart + 7; f++)
+  {
+    if (f < 10)
+    {
+      week3 = week3 + " " + String(f) + " ";
+    }
+    else
+    {
+      week3 = week3 + String(f) + " ";
+    }
+  }
+  const char *newWeek3 = (const char *)week3.c_str();
+  tft.drawString(newWeek3, 5, 135);
+  // display week 4
+  newWeekStart = (21 - startDay) + 2;
+  week4 = "";
+  for (int f = newWeekStart; f < newWeekStart + 7; f++)
+  {
+    if (f < 10)
+    {
+      week4 = week4 + " " + String(f) + " ";
+    }
+    else
+    {
+      week4 = week4 + String(f) + " ";
+    }
+  }
+  const char *newWeek4 = (const char *)week4.c_str();
+  tft.drawString(newWeek4, 5, 155);
+  // do we need a fifth week
+  week5 = "";
+  newWeekStart = (28 - startDay) + 2;
+  // is is February?
+  if (newWeekStart > 28 && ntp.month() == 2)
+  {
+    // do nothing unless its a leap year
+    if (ntp.year() == (ntp.year() / 4) * 4)
+    { // its a leap year
+      week5 = "29";
+    }
+  }
+  else
+  { // print up to 30 anyway
+    if (ntp.month() == 2)
+    { // its February
+      for (int f = newWeekStart; f < 29; f++)
+      {
+        week5 = week5 + String(f) + " ";
+      }
+      // is it a leap year
+      if (ntp.year() == (ntp.year() / 4) * 4)
+      { // its a leap year
+        week5 = week5 + "29";
+      }
+    }
+    else
+    {
+      for (int f = newWeekStart; f < 31; f++)
+      {
+        week5 = week5 + String(f) + " ";
+      }
+      // are there 31 days
+      if (monthLength == 31 && week5.length() < 7)
+      {
+        week5 = week5 + "31";
+      }
+    }
+  }
+  const char *newWeek5 = (const char *)week5.c_str();
+  tft.drawString(newWeek5, 5, 175);
+  //
+  // To print to Serial Monitor instead of OLED un-REM the following
+  // if data is sent to Serial Monitor the OLED will not display data!!!
+  /*
+  Serial.println("Su Mo Tu We Th Fr Sa");
+  Serial.println(week1);
+  Serial.println(week2);
+  Serial.println(week3);
+  Serial.println(week4);
+  Serial.println(week5);
+  while(1);  // wait indefinitly
+  */
+}
+/********************************************************/
+
+// calculate first day of month
+int startDayOfWeek(int y, int m, int d)
+{
+  static int t[] = {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
+  y -= m < 3;
+  return (y + y / 4 - y / 100 + y / 400 + t[m - 1] + d) % 7;
+}
+/********************************************************/
