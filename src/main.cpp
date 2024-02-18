@@ -879,7 +879,7 @@ void stationDisplay(int st)
     i++;
     k = k + 25;
   }
-  tft.fillRect(65, (stanonMenu * 25)+10, 246, 27, TFT_YELLOW);
+  tft.fillRect(65, (stanonMenu * 25)+10, 246, 25, TFT_YELLOW);
   tft.setTextColor(TFT_BLACK, TFT_YELLOW);
   tft.drawString(utf8rus(displayStations[stanonMenu]), 65, (stanonMenu * 25)+10);
 }
