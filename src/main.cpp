@@ -184,6 +184,7 @@ void setup()
   MessageToScroll_2 += F(" ");
   MessageToScroll_2 = utf8rus(MessageToScroll_2);
   width_txtW = tft.textWidth(MessageToScroll_2);
+  //Serial.println(MessageToScroll_2);
 
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
   audio.setVolume(15);
@@ -308,7 +309,7 @@ void setup()
   xTaskCreatePinnedToCore(
       Task1code,     /* Функция задачи. */
       "Task1",       /* Ее имя. */
-      3500,          /* Размер стека функции */
+      4000,          /* Размер стека функции */
       NULL,          /* Параметры */
       1,             /* Приоритет */
       &myTaskHandle, /* Дескриптор задачи для отслеживания */
@@ -323,7 +324,7 @@ void setup()
   txtSprite.fillSprite(TFT_BLACK);
   txtSprite.setFreeFont(&CourierCyr12pt8b);
 
-  WeatherSpr.createSprite(315, 25); // Ширина и высота спрайта
+  WeatherSpr.createSprite(240, 26); // Ширина и высота спрайта
   WeatherSpr.setTextSize(1);
   WeatherSpr.setTextColor(TFT_YELLOW, TFT_BLACK);
   WeatherSpr.fillSprite(TFT_BLACK);
@@ -349,7 +350,7 @@ void Task1code(void *pvParameters)
 // START loop
 //*******************************
 unsigned long timer_prev = 0;
-int timer_interval = 2000;
+int timer_interval = 3000;
 bool allow = true;
 int timer_interval_W = 4000;
 bool allow_W = true;
@@ -358,8 +359,7 @@ int x_sprite = 65;
 uint8_t ssid_show = 1;
 void loop()
 {
-  myEncoder();
-
+  if (enc1.tick()) myEncoder();
   // для возврата из меню
   intervalForMenu = millis() - currentMillis;
   if (intervalForMenu > 10000 && showRadio == false && calendar == false) // если время истекло
@@ -378,7 +378,7 @@ void loop()
   if (showRadio)
   {
     clock_on_core0();
-    drawlineClock();
+    //drawlineClock();
 
     if (first && CurrentDate != "Not sync" && CurrentDate != "20.02.1611")
     { // выввод даты после меню станций
@@ -447,7 +447,7 @@ void loop()
     {
       allow = !allow;
       timer_prev = timer_curr;
-      direct = random(0, 2);
+      direct = false; // random(0, 2);
       wifiLevel();
     }
     // Time for weather
@@ -455,22 +455,30 @@ void loop()
     {
       allow_W = !allow_W;
       timer_prev = timer_curr;
-      direct1 = random(0, 3);
+      direct1 = false; // random(0, 3);
     }
     if (allow)
     {
-      scrollMain(direct, 71, 23, 3);
+      if (MessageToScroll_1 == "  " || MessageToScroll_1 == "   ")
+      {
+        scrollMainWeather(direct1, 71, 23, 3);
+      }
+      else
+      {
+        scrollMain(direct, 71, 23, 3);
+      }
     }
-    // if (allow_W && ssid_show == 4)
-    // {
-    //   scrollMainWeather(direct1, 5, 210, 3);
-    // }
+    if (allow_W && ssid_show == 4)
+    {
+      scrollMainWeather(direct1, 5, 210, 3);
+    }
     if ((millis() - lastTime_ssid) > timerDelay_ssid)
     {
       printCodecAndBitrate();
-      switch (ssid_show)
-      {
-      case 1:
+      //switch (ssid_show)
+      //{
+      //case 1:
+      if (ssid_show==1) {
         tft.setFreeFont(&CourierCyr10pt8b);
         tft.setTextSize(1);
         tft.setTextColor(TFT_DARKGREEN, TFT_BLACK);
@@ -478,30 +486,36 @@ void loop()
         tft.drawString(WiFi.SSID(), 147, 212);
         lastTime_ssid = millis();
         ssid_show = 2;
-        break;
-      case 2:
-        tft.setFreeFont(&CourierCyr10pt8b);
-        tft.setTextSize(1);
-        tft.setTextColor(TFT_BROWN, TFT_BLACK);
-        tft.fillRect(147, 212, 160, 20, TFT_BLACK);
-        tft.drawString(WiFi.localIP().toString(), 147, 212);
-        lastTime_ssid = millis();
-        ssid_show = 3;
-        break;
-      case 3:
-        tft.setTextSize(1);
-        tft.setFreeFont(RU10);
-        tft.setTextColor(TFT_CYAN);
-        tft.setCursor(147, 226);
-        tft.fillRect(147, 212, 160, 20, TFT_BLACK);
-        tft.print(utf8rus(weather.name) + ", " + String(weather.temp, 1) + "`" + "C");
-        lastTime_ssid = millis();
-        ssid_show = 1;
-        break;
-      default:
-        break;
-      }
-      // scrollMainWeather(direct1, 5, 215, 3);
+        };
+       // break;
+      //case 2:
+        if (ssid_show == 2)
+        {
+          tft.setFreeFont(&CourierCyr10pt8b);
+          tft.setTextSize(1);
+          tft.setTextColor(TFT_BROWN, TFT_BLACK);
+          tft.fillRect(147, 212, 160, 20, TFT_BLACK);
+          tft.drawString(WiFi.localIP().toString(), 147, 212);
+          lastTime_ssid = millis();
+          ssid_show = 3;
+        };
+         // break;
+        //case 3:
+          if (ssid_show == 3)
+          {
+            tft.setTextSize(1);
+            tft.setFreeFont(RU10);
+            tft.setTextColor(TFT_CYAN);
+            tft.setCursor(147, 226);
+            tft.fillRect(147, 212, 160, 20, TFT_BLACK);
+            tft.print(utf8rus(weather.name) + ", " + String(weather.temp, 1) + "`" + "C");
+            lastTime_ssid = millis();
+            ssid_show = 1;
+          };
+            //break;
+          //default:
+          //  break;
+        //  }
     }
   }
 } // end LOOP
@@ -546,7 +560,7 @@ void scrollMainWeather(bool directTo, int left_coner_x, int left_coner_y, int sp
   // Влево
   if (!directTo)
   {
-    MessageToScroll_2 += CurrentDate + "  " + weather.name + weather.temp;
+    // MessageToScroll_2 += CurrentDate + "  " + weather.name + weather.temp;
     WeatherSpr.drawString(MessageToScroll_2, x_scroll_LW, 2);
     WeatherSpr.pushSprite(left_coner_x, left_coner_y); // Верхний левый угол спрайта
     x_scroll_LW--;
@@ -685,6 +699,8 @@ void clock_on_core0()
       tft.drawNumber(ss, xpos_clock + 14, ysecs_clock - 3);                // Draw seconds
     }
   }
+  tft.drawRect(260, 50, 60, 37, 0x9772);
+  tft.drawRect(260, 87, 60, 33, 0x9772);
   getClock = false;
 }
 
@@ -708,7 +724,7 @@ void clock_on_core0()
 //-------------------
 void myEncoder()
 {
-  enc1.tick();
+  //enc1.tick();
   if (enc1.right() && calendar == false)
   {
     if (showRadio)
@@ -879,9 +895,9 @@ void stationDisplay(int st)
     i++;
     k = k + 25;
   }
-  tft.fillRect(65, (stanonMenu * 25)+10, 246, 25, TFT_YELLOW);
+  tft.fillRect(65, (stanonMenu * 25) + 10, 246, 25, TFT_YELLOW);
   tft.setTextColor(TFT_BLACK, TFT_YELLOW);
-  tft.drawString(utf8rus(displayStations[stanonMenu]), 65, (stanonMenu * 25)+10);
+  tft.drawString(utf8rus(displayStations[stanonMenu]), 65, (stanonMenu * 25) + 10);
 }
 
 // Разделитель минут и секунд
@@ -1230,12 +1246,12 @@ String utf8rus(String source)
 void audio_showstreamtitle(const char *info)
 {
   Serial.println(info);
-  txtSprite.fillSprite(TFT_BLACK);
+  // txtSprite.fillSprite(TFT_BLACK);
   MessageToScroll_1 = F(" ");
   MessageToScroll_1 += info;
   MessageToScroll_1 += F(" ");
   MessageToScroll_1 = utf8rus(MessageToScroll_1);
-  txtSprite.setTextSize(1);
+  // txtSprite.setTextSize(1);
   width_txt = tft.textWidth(MessageToScroll_1);
   x_scroll_R = -width_txt;
   x_scroll_L = width_txt;
@@ -1398,12 +1414,7 @@ void audio_eof_audio(const char *info)
   Serial.print("eof_audio     ");
   Serial.println(info);
 }
-void audio_showstation(const char *info)
-{
-  Serial.print("station     ");
-  Serial.println(info);
-  MessageToScroll_2 = info;
-}
+
 */
 void audio_bitrate(const char *info)
 {

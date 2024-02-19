@@ -30,7 +30,7 @@ EncButton enc1(CLK, DT, SW);
 String apikey = F("30a9767f8d62e95546ea92a956457507"); // API key
 String Latitude = F("44.0511");                        //
 String Longitude = F("44.5408");                       //
-String lang = F("&lang=en");                           // this is your language
+String lang = F("&lang=ru");                           // this is your language
 
 bool first = true; // Вывести дату и день недели
 // bool http_acp = true;
