@@ -350,9 +350,9 @@ void Task1code(void *pvParameters)
 // START loop
 //*******************************
 unsigned long timer_prev = 0;
-int timer_interval = 3000;
+int timer_interval = 2500;
 bool allow = true;
-int timer_interval_W = 4000;
+int timer_interval_W = 2000;
 bool allow_W = true;
 bool direct, direct1;
 int x_sprite = 65;
