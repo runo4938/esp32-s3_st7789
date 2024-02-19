@@ -350,9 +350,9 @@ void Task1code(void *pvParameters)
 // START loop
 //*******************************
 unsigned long timer_prev = 0;
-int timer_interval = 2500;
+int timer_interval = 3000;
 bool allow = true;
-int timer_interval_W = 2000;
+int timer_interval_W = 4000;
 bool allow_W = true;
 bool direct, direct1;
 int x_sprite = 65;
@@ -1702,14 +1702,14 @@ String months[13] = {"", "Январь", "Февраль", "Март", "Апре
 void drawCalendar()
 {
   showRadio = false;
-  tft.fillRect(2, 52, 316, 140, TFT_LIGHTGREY);
-  tft.drawRect(2, 52, 316, 140, 0x9772);
+  tft.fillRect(5, 52, 313, 135, TFT_LIGHTGREY);
+  tft.drawRect(5, 52, 313, 135, 0x9772);
   // display a full month on a calendar
   tft.setFreeFont(&CourierCyr10pt8b);
   tft.setTextSize(1);
   tft.setTextColor(TFT_BLACK);
-  tft.drawString(utf8rus(months[ntp.month()]) + " " + ntp.year() + utf8rus(" г."), 20, 55);
-  tft.drawString(utf8rus("Пн Вт Ср Чт Пт Сб Вс"), 5, 75);
+  tft.drawString(utf8rus(months[ntp.month()]) + " " + ntp.year() + utf8rus(" г."), 30, 55);
+  tft.drawString(utf8rus("Пн Вт Ср Чт Пт Сб Вс"), 15, 75);
   // display this month
 
   // get number of days in month
@@ -1779,7 +1779,7 @@ void drawCalendar()
   } // end first week
   newWeekStart = (7 - startDay) + 2;
   const char *newWeek1 = (const char *)week1.c_str();
-  tft.drawString(newWeek1, 5, 95);
+  tft.drawString(newWeek1, 15, 95);
   // display week 2
   week2 = "";
   for (int f = newWeekStart; f < newWeekStart + 7; f++)
@@ -1794,7 +1794,7 @@ void drawCalendar()
     }
   }
   const char *newWeek2 = (const char *)week2.c_str();
-  tft.drawString(newWeek2, 5, 115);
+  tft.drawString(newWeek2, 15, 115);
   // display week 3
   newWeekStart = (14 - startDay) + 2;
   week3 = "";
@@ -1810,7 +1810,7 @@ void drawCalendar()
     }
   }
   const char *newWeek3 = (const char *)week3.c_str();
-  tft.drawString(newWeek3, 5, 135);
+  tft.drawString(newWeek3, 15, 135);
   // display week 4
   newWeekStart = (21 - startDay) + 2;
   week4 = "";
@@ -1826,7 +1826,7 @@ void drawCalendar()
     }
   }
   const char *newWeek4 = (const char *)week4.c_str();
-  tft.drawString(newWeek4, 5, 155);
+  tft.drawString(newWeek4, 15, 155);
   // do we need a fifth week
   week5 = "";
   newWeekStart = (28 - startDay) + 2;
@@ -1867,7 +1867,7 @@ void drawCalendar()
     }
   }
   const char *newWeek5 = (const char *)week5.c_str();
-  tft.drawString(newWeek5, 5, 175);
+  tft.drawString(newWeek5, 15, 175);
   //
   // To print to Serial Monitor instead of OLED un-REM the following
   // if data is sent to Serial Monitor the OLED will not display data!!!
