@@ -184,7 +184,7 @@ void setup()
   MessageToScroll_2 += F(" ");
   MessageToScroll_2 = utf8rus(MessageToScroll_2);
   width_txtW = tft.textWidth(MessageToScroll_2);
-  //Serial.println(MessageToScroll_2);
+  // Serial.println(MessageToScroll_2);
 
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
   audio.setVolume(15);
@@ -359,7 +359,8 @@ int x_sprite = 65;
 uint8_t ssid_show = 1;
 void loop()
 {
-  if (enc1.tick()) myEncoder();
+  if (enc1.tick())
+    myEncoder();
   // для возврата из меню
   intervalForMenu = millis() - currentMillis;
   if (intervalForMenu > 10000 && showRadio == false && calendar == false) // если время истекло
@@ -378,7 +379,7 @@ void loop()
   if (showRadio)
   {
     clock_on_core0();
-    //drawlineClock();
+    // drawlineClock();
 
     if (first && CurrentDate != "Not sync" && CurrentDate != "20.02.1611")
     { // выввод даты после меню станций
@@ -468,54 +469,41 @@ void loop()
         scrollMain(direct, 71, 23, 3);
       }
     }
-    if (allow_W && ssid_show == 4)
-    {
-      scrollMainWeather(direct1, 5, 210, 3);
-    }
+
     if ((millis() - lastTime_ssid) > timerDelay_ssid)
     {
       printCodecAndBitrate();
-      //switch (ssid_show)
-      //{
-      //case 1:
-      if (ssid_show==1) {
+      switch (ssid_show)
+      {
+      case 1:
         tft.setFreeFont(&CourierCyr10pt8b);
         tft.setTextSize(1);
         tft.setTextColor(TFT_DARKGREEN, TFT_BLACK);
-        tft.fillRect(147, 212, 160, 20, TFT_BLACK);
-        tft.drawString(WiFi.SSID(), 147, 212);
+        tft.fillRect(135, 212, 183, 20, TFT_BLACK);
+        tft.drawString(WiFi.SSID(), 135, 212);
         lastTime_ssid = millis();
         ssid_show = 2;
-        };
-       // break;
-      //case 2:
-        if (ssid_show == 2)
-        {
-          tft.setFreeFont(&CourierCyr10pt8b);
-          tft.setTextSize(1);
-          tft.setTextColor(TFT_BROWN, TFT_BLACK);
-          tft.fillRect(147, 212, 160, 20, TFT_BLACK);
-          tft.drawString(WiFi.localIP().toString(), 147, 212);
-          lastTime_ssid = millis();
-          ssid_show = 3;
-        };
-         // break;
-        //case 3:
-          if (ssid_show == 3)
-          {
-            tft.setTextSize(1);
-            tft.setFreeFont(RU10);
-            tft.setTextColor(TFT_CYAN);
-            tft.setCursor(147, 226);
-            tft.fillRect(147, 212, 160, 20, TFT_BLACK);
-            tft.print(utf8rus(weather.name) + ", " + String(weather.temp, 1) + "`" + "C");
-            lastTime_ssid = millis();
-            ssid_show = 1;
-          };
-            //break;
-          //default:
-          //  break;
-        //  }
+        break;
+      case 2:
+        tft.setFreeFont(&CourierCyr10pt8b);
+        tft.setTextSize(1);
+        tft.setTextColor(TFT_BROWN, TFT_BLACK);
+        tft.fillRect(135, 212, 183, 20, TFT_BLACK);
+        tft.drawString(WiFi.localIP().toString(), 135, 212);
+        lastTime_ssid = millis();
+        ssid_show = 3;
+        break;
+      case 3:
+        tft.setTextSize(1);
+        tft.setFreeFont(RU10);
+        tft.setTextColor(TFT_CYAN);
+        tft.setCursor(142, 226);
+        tft.fillRect(135, 212, 183, 20, TFT_BLACK);
+        tft.print(utf8rus(weather.name) + ", " + String(weather.temp, 1) + "`" + "C");
+        lastTime_ssid = millis();
+        ssid_show = 1;
+        break;
+      }
     }
   }
 } // end LOOP
@@ -724,7 +712,7 @@ void clock_on_core0()
 //-------------------
 void myEncoder()
 {
-  //enc1.tick();
+  // enc1.tick();
   if (enc1.right() && calendar == false)
   {
     if (showRadio)
@@ -1470,7 +1458,7 @@ void listStaton()
 {
   String partlistStation;
   uint8_t i = 0;
-  while (i < numbStations)
+  while (i <= numbStations)
   {
     int ind_to_scace = StationList[i].indexOf(space);
     String nameStat = StationList[i].substring(0, ind_to_scace);
@@ -1702,8 +1690,8 @@ String months[13] = {"", "Январь", "Февраль", "Март", "Апре
 void drawCalendar()
 {
   showRadio = false;
-  tft.fillRect(5, 52, 313, 135, TFT_LIGHTGREY);
-  tft.drawRect(5, 52, 313, 135, 0x9772);
+  tft.fillRect(5, 52, 313, 140, TFT_LIGHTGREY);
+  tft.drawRect(5, 52, 313, 140, 0x9772);
   // display a full month on a calendar
   tft.setFreeFont(&CourierCyr10pt8b);
   tft.setTextSize(1);
