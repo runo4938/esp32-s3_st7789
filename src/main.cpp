@@ -32,7 +32,7 @@ TFT_eSprite txtSprite = TFT_eSprite(&tft);  // Create Sprite
 TFT_eSprite WeatherSpr = TFT_eSprite(&tft); // Create Sprite
 UnixTime stamp(3);                          // указать GMT (3 для Москвы)
 bool online_w = true;
-#define FIRMWARE_VERSION "1"
+#define FIRMWARE_VERSION "1.0.0"
 uint16_t ind;
 String newSt;
 const String space = " ";
@@ -234,7 +234,7 @@ void setup()
             { request->send(SPIFFS, "/index.html", String(), false, processor_playlst); });
 
   server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request)
-            { request->send(SPIFFS, "/upload.html", String(), false); });
+            { request->send(SPIFFS, "/upload.html", String(), false, processor_playlst); });
 
   server.on("/newrelease", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(204);
@@ -1469,6 +1469,15 @@ String processor_playlst(const String &var)
   {
     return listRadio;
   }
+  if (var == "version")
+  {
+    return FIRMWARE_VERSION;
+  }
+  if (var == "reboot")
+  {
+    return "The update will be on the next reboot";
+  }
+
   return String();
 }
 
@@ -2105,5 +2114,5 @@ void newVer()
         Serial.println("Download failed");
       }
     }
-    }
+  }
 }
