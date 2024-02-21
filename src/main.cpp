@@ -32,7 +32,7 @@ TFT_eSprite txtSprite = TFT_eSprite(&tft);  // Create Sprite
 TFT_eSprite WeatherSpr = TFT_eSprite(&tft); // Create Sprite
 UnixTime stamp(3);                          // указать GMT (3 для Москвы)
 bool online_w = true;
-#define FIRMWARE_VERSION "v0.0.1"
+#define FIRMWARE_VERSION "1"
 uint16_t ind;
 String newSt;
 const String space = " ";
@@ -48,9 +48,8 @@ WiFiClient client;
 
 int currentVersion = 0; // increment currentVersion in each release
 
-String baseUrl = "https://raw.githubusercontent.com/runo4938/src1/master/";
+String baseUrl = "https://raw.githubusercontent.com/runo4938/esp32-s3_st7789/main/";
 String checkFile = "update.json";
-/* end of script data */
 
 int fwVersion = 0;
 bool fwCheck = false;
@@ -136,9 +135,8 @@ void performUpdate(Stream &updateSource, size_t updateSize);
 void updateFromFS(fs::FS &fs);
 bool downloadFirmware();
 bool checkFirmware();
-
-
-    String make_str(String str);
+void newrelease();
+String make_str(String str);
 String utf8rus(String source);
 String readFile(fs::FS &fs, const char *path);
 
@@ -175,35 +173,9 @@ void setup()
   tft.setCursor(40, 90);
   tft.println("Connected to SSID: ");
   tft.setCursor(40, 120);
-  tft.print(WiFi.SSID());
-  delay(2000);
+  tft.println(WiFi.SSID());
+  delay(1000);
 
-  Serial.println("Firmware Updates from Github");
-  if (!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED))
-  {
-    Serial.println("SPIFFS Mount Failed");
-    rebootEspWithReason("SPIFFS Mount Failed, rebooting...");
-  }
-  
-    Serial.println("Wifi connected. Checking for updates");
-    if (checkFirmware())
-    {
-      if (SPIFFS.exists("/firmware.bin"))
-      {
-        SPIFFS.remove("/firmware.bin");
-        Serial.println("Removed existing update file");
-      }
-      if (downloadFirmware())
-      {
-        Serial.println("Download complete");
-        updateFromFS(SPIFFS);
-      }
-      else
-      {
-        Serial.println("Download failed");
-      }
-    }
-  
 
   getWeather();
   MessageToScroll_2 = "";
@@ -260,8 +232,11 @@ void setup()
   server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(SPIFFS, "/upload.html", String(), false); });
 
-  // server.on("/playlist.txt", HTTP_GET, [](AsyncWebServerRequest *request)
-  //           { request->send(SPIFFS, "/playlist.html", String(), false, processor_playlst); });
+  server.on("/newrelease", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send(204);
+              newrelease(); });
+
+  // request->send(SPIFFS, "/playlist.html", String(), false, processor_playlst);
 
   server.on("/filesystem", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(SPIFFS, "/fs.html", String(), false, processor_update); });
@@ -2083,4 +2058,35 @@ bool checkFirmware()
   http.end();
 
   return stat;
+}
+void newrelease()
+{
+
+  Serial.println("Firmware Updates from Github");
+  if (!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED))
+  {
+    Serial.println("SPIFFS Mount Failed");
+    rebootEspWithReason("SPIFFS Mount Failed, rebooting...");
+  }
+
+  Serial.println("Wifi connected. Checking for updates");
+  if (checkFirmware())
+  {
+    if (SPIFFS.exists("/firmware.bin"))
+    {
+      SPIFFS.remove("/firmware.bin");
+      Serial.println("Removed existing update file");
+    }
+    if (downloadFirmware())
+    {
+      Serial.println("Download complete");
+      updateFromFS(SPIFFS);
+    }
+    else
+    {
+      tft.println("You have the latest version");
+      delay(2000);
+      Serial.println("Download failed");
+    }
+  }
 }
