@@ -2067,6 +2067,7 @@ void newrelease()
 {
   EEPROM.write(3, 1); // UPDATE
   EEPROM.commit();
+  ESP.restart();
 }
 
 void newVer()
