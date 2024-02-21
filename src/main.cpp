@@ -50,6 +50,7 @@ int currentVersion = 0; // increment currentVersion in each release
 
 String baseUrl = "https://raw.githubusercontent.com/runo4938/esp32-s3_st7789/main/";
 String checkFile = "src/update.json";
+// https://raw.githubusercontent.com/runo4938/esp32-s3_st7789/main/.pio/build/upesy_wrover/firmware.bin
 
 int fwVersion = 0;
 bool fwCheck = false;
@@ -176,7 +177,6 @@ void setup()
   tft.println(WiFi.SSID());
   delay(1000);
 
-
   getWeather();
   MessageToScroll_2 = "";
   MessageToScroll_2.reserve(350);
@@ -234,7 +234,10 @@ void setup()
 
   server.on("/newrelease", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(204);
-              newrelease(); });
+    vTaskSuspend(myTaskHandle);
+    newrelease();
+    vTaskResume(myTaskHandle);
+     });
 
   // request->send(SPIFFS, "/playlist.html", String(), false, processor_playlst);
 
@@ -1459,8 +1462,8 @@ void audio_eof_speech(const char *info)
 //----------filesystem
 String processor_playlst(const String &var)
 {
-  Serial.println(var);
-  Serial.println(listRadio);
+  // Serial.println(var);
+  // Serial.println(listRadio);
   if (var == "nameST")
   {
     return listRadio;
