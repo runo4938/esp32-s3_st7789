@@ -49,7 +49,7 @@ WiFiClient client;
 int currentVersion = 0; // increment currentVersion in each release
 
 String baseUrl = "https://raw.githubusercontent.com/runo4938/esp32-s3_st7789/main/";
-String checkFile = "src/update.json";
+String checkFile = "update.json";
 // https://raw.githubusercontent.com/runo4938/esp32-s3_st7789/main/.pio/build/upesy_wrover/firmware.bin
 
 int fwVersion = 0;
@@ -151,7 +151,9 @@ void listStaton();
 String processor_update(const String &var);
 String processor_playlst(const String &var);
 void print_Img(int x, int y, String WeaIcon);
-
+void newrelease();
+void newVer();
+//--- START ---
 void setup()
 {
   pinMode(LED_BUILT, OUTPUT);
@@ -176,6 +178,8 @@ void setup()
   tft.setCursor(40, 120);
   tft.println(WiFi.SSID());
   delay(1000);
+
+  newVer();
 
   getWeather();
   MessageToScroll_2 = "";
@@ -234,10 +238,7 @@ void setup()
 
   server.on("/newrelease", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(204);
-    vTaskSuspend(myTaskHandle);
-    newrelease();
-    vTaskResume(myTaskHandle);
-     });
+               newrelease(); });
 
   // request->send(SPIFFS, "/playlist.html", String(), false, processor_playlst);
 
@@ -2064,32 +2065,44 @@ bool checkFirmware()
 }
 void newrelease()
 {
+  EEPROM.write(3, 1); // UPDATE
+  EEPROM.commit();
+}
 
-  Serial.println("Firmware Updates from Github");
-  if (!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED))
+void newVer()
+{
+  if (EEPROM.read(3) == 1)
   {
-    Serial.println("SPIFFS Mount Failed");
-    rebootEspWithReason("SPIFFS Mount Failed, rebooting...");
-  }
+    EEPROM.write(3, 0); // don't update
+    EEPROM.commit();
 
-  Serial.println("Wifi connected. Checking for updates");
-  if (checkFirmware())
-  {
-    if (SPIFFS.exists("/firmware.bin"))
+    tft.println("Updating. Please wait...");
+    Serial.println("Firmware Updates from Github");
+    if (!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED))
     {
-      SPIFFS.remove("/firmware.bin");
-      Serial.println("Removed existing update file");
+      Serial.println("SPIFFS Mount Failed");
+      rebootEspWithReason("SPIFFS Mount Failed, rebooting...");
     }
-    if (downloadFirmware())
+
+    Serial.println("Wifi connected. Checking for updates");
+    if (checkFirmware())
     {
-      Serial.println("Download complete");
-      updateFromFS(SPIFFS);
+      if (SPIFFS.exists("/firmware.bin"))
+      {
+        SPIFFS.remove("/firmware.bin");
+        Serial.println("Removed existing update file");
+      }
+      if (downloadFirmware())
+      {
+        Serial.println("Download complete");
+        updateFromFS(SPIFFS);
+      }
+      else
+      {
+        tft.println("You have the latest version");
+        delay(2000);
+        Serial.println("Download failed");
+      }
     }
-    else
-    {
-      tft.println("You have the latest version");
-      delay(2000);
-      Serial.println("Download failed");
     }
-  }
 }
