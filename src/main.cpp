@@ -49,7 +49,7 @@ WiFiClient client;
 int currentVersion = 0; // increment currentVersion in each release
 
 String baseUrl = "https://raw.githubusercontent.com/runo4938/esp32-s3_st7789/main/";
-String checkFile = "update.json";
+String checkFile = "src/update.json";
 // https://raw.githubusercontent.com/runo4938/esp32-s3_st7789/main/.pio/build/upesy_wrover/firmware.bin
 
 int fwVersion = 0;
