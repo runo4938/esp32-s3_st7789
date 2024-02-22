@@ -605,27 +605,27 @@ void scrollMainWeather(bool directTo, int left_coner_x, int left_coner_y, int sp
 // Показать VUmeter
 void soundShow()
 {
-  int y_show = 135;
+  int y_show = 130;
 
   if (x1_prev > x1_lev)
   {
-    tft.fillRect(x1_prev, y_show, 4, 4, TFT_BLACK);
+    tft.fillRect(x1_prev, y_show, 4, 23, TFT_BLACK);
     x1_prev = x1_prev - 7;
   }
   if (x1_prev < x1_lev)
   {
-    tft.fillRect(x1_prev, y_show, 4, 4, TFT_GREEN);
+    tft.fillRect(x1_prev, y_show, 4, 23, TFT_GREEN);
     x1_prev = x1_prev + 7;
   }
 
   if (x2_prev > x2_lev)
   {
-    tft.fillRect(x2_prev, y_show + 7, 4, 4, TFT_BLACK);
+    tft.fillRect(x2_prev, y_show + 28, 4, 23, TFT_BLACK);
     x2_prev = x2_prev - 7;
   }
   if (x2_prev < x2_lev)
   {
-    tft.fillRect(x2_prev, y_show + 7, 4, 4, TFT_GREEN);
+    tft.fillRect(x2_prev, y_show + 28, 4, 23, TFT_GREEN);
     x2_prev = x2_prev + 7;
   }
   rnd = true;
@@ -1698,9 +1698,8 @@ void lineondisp()
   // vulevel
   tft.drawRect(0, 120, 160, 75, TFT_CYAN);
   tft.drawRect(160, 120, 160, 75, TFT_CYAN);
-  tft.drawRect(160, 157, 160, 37, TFT_CYAN); // under vuMeter
-  tft.drawString("String ",170,170);
-  tft.drawRect(0, 120, 80, 75, TFT_CYAN);
+
+   tft.drawRect(0, 120, 80, 75, TFT_CYAN);
   tft.drawLine(80, 157, 160, 157, TFT_CYAN);
 
   tft.setTextColor(TFT_DARKGREY);
