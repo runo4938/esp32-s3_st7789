@@ -1707,7 +1707,7 @@ void lineondisp()
   tft.drawString("CSS", 93, 129);
   tft.setTextColor(TFT_DARKGREY);
   tft.drawString("CSS", 95, 131);
-  tft.setTextColor(TFT_WHITE);
+  tft.setTextColor(TFT_GREEN);
   tft.drawString("CSS", 99, 135);
   tft.drawRect(0, 202, 320, 38, TFT_CYAN);
 }
