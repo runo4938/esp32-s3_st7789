@@ -3,3 +3,5 @@
 include
 lib
 test
+.pio\build\upesy_wrover\firmware.bin
+.gitignore
