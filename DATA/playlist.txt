@@ -23,6 +23,6 @@
 22-ВолнаФМ http://radio.volnafm.ru:8000/ekb
 23-Paradise https://stream-uk1.radioparadise.com/aac-320
 24-FFH http://mp3.ffh.de/radioffh/hqlivestream.aac
-25-Rautemusik https://rautemusik-de-hz-fal-stream15.radiohost.de/breakz?
+25-ДядяВаня https://ic1.radiosignal.one/vanya-mp3
 26-VOA https://1a-90er.radionetz.de/1a-90er.mp3
 27-LBS https://media-ssl.musicradio.com/LBCLondon
