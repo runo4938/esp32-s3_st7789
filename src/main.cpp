@@ -122,7 +122,7 @@ void initWiFi();
 void wifiLevel();
 void myEncoder();
 void menuStation();
-void showStation(int s); // пришли с номером станции по экрану
+//void showStation(int s); // пришли с номером станции по экрану
 void stationDisplay(int st);
 void clock_on_core0();
 void drawlineClock();
@@ -1702,12 +1702,12 @@ void lineondisp()
    tft.drawRect(0, 120, 80, 75, TFT_CYAN);
   tft.drawLine(80, 157, 160, 157, TFT_CYAN);
 
-  tft.setTextColor(TFT_DARKGREY);
-  tft.drawString("CSS", 91, 127);
-  tft.setTextColor(TFT_DARKGREY);
-  tft.drawString("CSS", 93, 129);
-  tft.setTextColor(TFT_DARKGREY);
-  tft.drawString("CSS", 95, 131);
+  // tft.setTextColor(TFT_DARKGREY);
+  // tft.drawString("CSS", 91, 127);
+  // tft.setTextColor(TFT_DARKGREY);
+  // tft.drawString("CSS", 93, 129);
+  // tft.setTextColor(TFT_DARKGREY);
+  // tft.drawString("CSS", 95, 131);
   tft.setTextColor(TFT_GREEN);
   tft.drawString("CSS", 99, 135);
   tft.drawRect(0, 202, 320, 38, TFT_CYAN);
@@ -1895,18 +1895,6 @@ void drawCalendar()
   }
   const char *newWeek5 = (const char *)week5.c_str();
   tft.drawString(newWeek5, 15, 175);
-  //
-  // To print to Serial Monitor instead of OLED un-REM the following
-  // if data is sent to Serial Monitor the OLED will not display data!!!
-  /*
-  Serial.println("Su Mo Tu We Th Fr Sa");
-  Serial.println(week1);
-  Serial.println(week2);
-  Serial.println(week3);
-  Serial.println(week4);
-  Serial.println(week5);
-  while(1);  // wait indefinitly
-  */
 }
 /********************************************************/
 

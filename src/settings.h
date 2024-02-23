@@ -44,6 +44,19 @@ int x1_prev = 162;
 int x2_prev = 162;
 int y_show = 122;
 
+unsigned long timerDelay = 30; // минуты -таймер обновления погоды
+int y1_random;
+int y2_random;
+int y_progress = 210;
+int x_show = 2;
+int y1_current = y_progress;
+int y1_show = y_progress;
+int y1_prev = y_progress;
+int y2_current = y_progress;
+int y2_show = y_progress;
+int y2_prev = y_progress;
+//uint32_t vumetersDelay = 250;
+
 unsigned long lastTime = 0;
 unsigned long lastTime_ssid = 0;
 unsigned long timerDelay_ssid = 4000;

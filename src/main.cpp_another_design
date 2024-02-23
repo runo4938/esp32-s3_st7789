@@ -1,0 +1,1944 @@
+// #include <Arduino.h>
+#include <TFT_eSPI.h>
+#include <Audio.h>
+#include <EEPROM.h>
+#include <settings.h>
+#include <Update.h>
+#include <ESPmDNS.h>
+#include <WiFiManager.h>
+#include <ESPAsyncWebServer.h>
+#include <GyverNTP.h>
+#include <HTTPClient.h>
+#include <ArduinoJSON.h>
+#include <UnixTime.h>
+#include <ImgWea60.h>
+#include "../lib/fonts.h"
+#include "../lib/CourierCyr10.h"
+#include "../lib/Bahamas14.h"
+#include "../lib/CourierCyr12.h" //для меню станций
+// #include "../lib/Free_Fonts.h"
+#define RU10 &FreeSansBold10pt8b
+#define BAHAMAS &Bahamas14pt8b
+#define DIG20 &DIG_Bold_20
+#define RU8 &FreeMonoBold8pt8b
+#define LED_BRIGHTNESS 70 // яркость дисплея при старте
+
+#define LED_BUILT 5       // управление яркостью дисплея
+
+#define U_PART U_SPIFFS //
+
+// #define Serial_Print
+
+TFT_eSPI tft = TFT_eSPI();
+TFT_eSprite txtSprite = TFT_eSprite(&tft);  // Create Sprite
+TFT_eSprite WeatherSpr = TFT_eSprite(&tft); // Create Sprite
+                              //
+UnixTime stamp(3);                          // указать GMT (3 для Москвы)
+bool online_w = true;
+WiFiManager wifiManager;
+String newSt;
+const char *space = " ";
+int img = 1;
+
+HTTPClient http;
+WiFiClient client;
+
+TaskHandle_t myTaskHandle = NULL;
+
+int ypos = 190; // position title
+int xpos = 0;
+
+bool stations;                 // Станция вверх или вниз (true or false)
+uint8_t showRadio = 0;         // show radio or menu of station,
+bool getClock = true;          // Получать время только при запуске
+unsigned long currentMillis;   // Для возврата из меню по истечении времении
+unsigned long intervalForMenu; // Для возврата из меню по истечении времении
+bool f_startProgress = true;   // for starting
+
+void filePosition(); // Position vol level
+void notFound(AsyncWebServerRequest *request);
+String CurrentDate;
+uint8_t CurrentWeek;
+String days[8] = {"Воскресенье", "ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"};
+
+// Scrolling
+String MessageToScroll_1 = F(" ");
+String MessageToScroll_2 = F("It's two string for scrolling");
+int16_t width_txt;
+int16_t width_txtW;
+
+int x_scroll_L;
+int x_scroll_R;
+
+int x_scroll_LW;
+int x_scroll_RW;
+
+GyverNTP ntp(3);
+AsyncWebServer server(80);
+
+//*************************************
+// Clock
+//**************************************
+float sx = 0, sy = 1, mx = 1, my = 0, hx = -1, hy = 0;               // Saved H, M, S x & y multipliers
+float sdeg = 0, mdeg = 0, hdeg = 0;                                  //
+uint16_t osx = 80, osy = 80, omx = 80, omy = 80, ohx = 80, ohy = 80; // Saved H, M, S x & y coords
+uint16_t x0 = 0, x1 = 0, yy0 = 0, yy1 = 0;                           //
+uint32_t targetTime = 0;                                             // for next 1 second timeout
+bool initial = 1;
+int clockX = 170;
+int clockY = 117;
+
+//**************************************
+//--filesystem --------------
+String filelist = "";
+String listRadio; // радиостанции на странице
+const char *PARAM = "file";
+size_t content_len;
+File file;
+bool opened = false;
+const char *host = "esp32";
+String bitrate;
+//---------------------------------
+TaskHandle_t Task1;
+// ------weather---------
+void Get_Weather_http(String &MSG_http);
+void getWeather();
+String WindDeg_Direction(int Wind_direction);
+bool decode_json(Stream &jsonStr);
+void scrollMainWeather(bool directTo, int left_coner_x, int left_coner_y, int speed_scroll);
+void scrollMain(bool directTo, int left_coner_x, int left_coner_y, int speed_scroll);
+void Task1code(void *pvParameters);
+void printStation(uint8_t indexOfStation);
+void printCodecAndBitrate();
+void nextStation(bool stepStation);
+void initSpiffs();
+void readEEprom();
+void initWiFi();
+void wifiLevel();
+void myEncoder();
+void clockAnalog();
+void menuStation();
+void stationDisplay(int st);
+void clock_on_core0(); // Get Clock ntp Server
+void drawlineClock();
+void soundShow();
+void ircontrol();
+void listStaton();
+void handleDoUpdate(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len, bool final);
+void handleDoUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
+void printProgress(size_t prg, size_t sz);
+void notFound(AsyncWebServerRequest *request);
+void listDir(fs::FS &fs, const char *dirname, uint8_t levels);
+void deleteFile(fs::FS &fs, const String &path);
+void clockLoop();
+void print_Img(int x, int y, String WeaIcon);
+
+String make_str(String str);
+String utf8rus(String source);
+String readFile(fs::FS &fs, const char *path);
+String processor_update(const String &var);
+String processor_playlst(const String &var);
+
+//**********************************
+// setup
+//**********************************
+void setup()
+{
+ 
+
+  Serial.begin(115200);
+  tft.begin();
+  tft.initDMA();
+  tft.setRotation(3);
+  pinMode(LED_BUILT, OUTPUT);
+  analogWrite(LED_BUILT, LED_BRIGHTNESS); // первоначальная яркость дисплея
+
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.setTextSize(2);
+  tft.setCursor(40, 60);
+  tft.println("Starting Radio...");
+  audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
+  audio.setVolume(volume);
+  // pinMode(RECEIVER_PIN, INPUT);
+  // irController.begin();
+
+  readEEprom();
+  initSpiffs();
+  initWiFi();
+  tft.setCursor(40, 90);
+  tft.println("Connected to SSID: ");
+  tft.setCursor(40, 120);
+  tft.print(WiFi.SSID());
+  delay(500);
+  // audio.connecttospeech("Запуск радио. Соединение по WiFi", "ru");
+  getWeather();
+
+  MessageToScroll_2 = "";
+  MessageToScroll_2.reserve(350);
+  MessageToScroll_2 += F(" ");
+  MessageToScroll_2 += F(" Погода: ");
+  MessageToScroll_2 += weather.description;
+
+  MessageToScroll_2 += F(" Температура: ");
+  MessageToScroll_2 += weather.temp;
+
+  MessageToScroll_2 += F(" Чувствуется как: ");
+  MessageToScroll_2 += weather.feels_like;
+
+  MessageToScroll_2 += F(" Давл:");
+  MessageToScroll_2 += String(weather.grnd_level * 0.750062, 0); // давление на местности
+  MessageToScroll_2 += F(" мм, Влажн:");
+  MessageToScroll_2 += String(weather.humidity);
+  MessageToScroll_2 += F("%, Ветер ");
+  MessageToScroll_2 += String(WindDeg_Direction(weather.deg));
+  MessageToScroll_2 += F(", ");
+  MessageToScroll_2 += String(weather.speed, 1);
+  MessageToScroll_2 += F("м/c ");
+  stamp.getDateTime(weather.sunrise);
+  MessageToScroll_2 += F(" всх:");
+  MessageToScroll_2 += stamp.hour;
+  MessageToScroll_2 += F(":");
+  MessageToScroll_2 += stamp.minute;
+  stamp.getDateTime(weather.sunset);
+  MessageToScroll_2 += F(" зах:");
+  MessageToScroll_2 += stamp.hour;
+  MessageToScroll_2 += F(":");
+  MessageToScroll_2 += stamp.minute;
+  MessageToScroll_2 += F(" ");
+  MessageToScroll_2 = utf8rus(MessageToScroll_2);
+  width_txtW = tft.textWidth(MessageToScroll_2);
+
+  //  Print local IP
+  tft.fillScreen(TFT_BLACK);
+  tft.drawRect(0,0,320,240,TFT_CYAN);
+  tft.setTextColor(0x9772, TFT_BLACK);
+  tft.setTextSize(2);
+  tft.setCursor((250 - tft.textWidth(String(WiFi.localIP()))) / 2, ypos + 30);
+  tft.drawRect(0, ypos + 23, 319, 27, TFT_CYAN);
+  tft.print(WiFi.localIP());
+
+  if (!MDNS.begin(host))
+  {
+    Serial.println("Error setting up MDNS responder!");
+    while (1)
+    {
+      delay(1000);
+    }
+  }
+  Serial.print("\tmDNS responder started\n");
+
+  listDir(SPIFFS, "/", 0);
+
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send(SPIFFS, "/index.html", String(), false, processor_playlst); });
+
+  server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send(SPIFFS, "/upload.html", String(), false); });
+
+  server.on("/playlist.txt", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send(SPIFFS, "/playlist.html", String(), false, processor_playlst); });
+
+  server.on("/filesystem", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send(SPIFFS, "/fs.html", String(), false, processor_update); });
+
+  server.on("/filelist", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send_P(200, "text/plain", filelist.c_str()); });
+
+  server.on("/testpage", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send(SPIFFS, "/testpage.html", String(), false); });
+  server.on("/reboot", HTTP_GET, [](AsyncWebServerRequest *request)
+            {
+    request->send(200, "text/plain", "Device will reboot in 2 seconds");
+    delay(2000);
+    ESP.restart(); });
+
+  server.on(
+      "/doUpdate", HTTP_POST,
+      [](AsyncWebServerRequest *request) {},
+      [](AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len, bool final)
+      {
+        handleDoUpdate(request, filename, index, data, len, final);
+      });
+
+  server.on(
+      "/doUpload", HTTP_POST, [](AsyncWebServerRequest *request)
+      { opened = false; },
+      [](AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len, bool final)
+      {
+        handleDoUpload(request, filename, index, data, len, final);
+      });
+  server.on("/delete", HTTP_GET, [](AsyncWebServerRequest *request)
+            {
+    String inputMessage;
+    String inputParam;
+    // GET input1 value on <ESP_IP>/update?state=<inputMessage>
+    if (request->hasParam(PARAM)) {
+      inputMessage = request->getParam(PARAM)->value();
+      inputParam = PARAM;
+
+      deleteFile(SPIFFS, inputMessage);
+
+      Serial.println("-inputMessage-");
+      Serial.print("File=");
+      Serial.println(inputMessage);
+      Serial.println(" has been deleted");
+
+    }
+    else {
+      inputMessage = "No message sent";
+      inputParam = "none";
+    }
+    request->send(200, "text/plain", "OK"); });
+
+  // Если переключили станцию вперед
+  //------------------------------------
+  server.on("/off", HTTP_ANY, [](AsyncWebServerRequest *request)
+            {
+             request->send(204);
+             vTaskSuspend(myTaskHandle);
+             stations = false;
+             nextStation(stations);
+             vTaskResume(myTaskHandle); });
+  //    Если переключили станцию назад
+  //----------------------------------
+  server.on("/on", HTTP_ANY, [](AsyncWebServerRequest *request)
+            {
+                request->send(204);
+               // audio.stopSong();
+               vTaskSuspend(myTaskHandle);
+               stations = true;
+               nextStation(stations);
+               vTaskResume(myTaskHandle); });
+  ntp.begin();
+  server.onNotFound(notFound);
+  server.begin();
+  Update.onProgress(printProgress);
+  //-------- end --filesystem------
+
+  // The first connection
+  uint16_t ind;
+  ind = StationList[NEWStation].indexOf(space);
+  newSt = StationList[NEWStation].substring(ind + 1, StationList[NEWStation].length());
+  // const char *sl = newSt.c_str();
+  audio.connecttohost(newSt.c_str()); // sl); // переключаем станцию
+  // delay(200);
+  // Serial.println(sl);
+  filePosition();
+  OLDStation = NEWStation;  //
+  printStation(NEWStation); // вывести на экран название станции
+  printCodecAndBitrate();
+  // For CORE0
+  xTaskCreatePinnedToCore(
+      Task1code,     /* Функция задачи. */
+      "Task1",       /* Ее имя. */
+      2500,          /* Размер стека функции */
+      NULL,          /* Параметры */
+      1,             /* Приоритет */
+      &myTaskHandle, /* Дескриптор задачи для отслеживания */
+      0);            /* Указываем пин для данного ядра */
+  delay(1);
+
+  tft.setSwapBytes(true);
+  txtSprite.createSprite(250, 25); // Ширина и высота спрайта
+  txtSprite.setTextSize(1);
+  txtSprite.setTextColor(0x9772, TFT_BLACK);
+  txtSprite.fillSprite(TFT_BLACK);
+  txtSprite.setFreeFont(RU10);
+
+  WeatherSpr.createSprite(280, 23); // Ширина и высота спрайта
+  WeatherSpr.setTextSize(1);
+  WeatherSpr.setTextColor(TFT_GREENYELLOW, TFT_BLACK);
+  WeatherSpr.fillSprite(TFT_BLACK);
+  WeatherSpr.setFreeFont(RU8);
+  print_Img(258, 90, weather.icon);
+} // End Setup
+
+//----------------------------------------
+//*** Task for core 0 ***
+//--------------------------------------
+void Task1code(void *pvParameters)
+{
+  Serial.print("\tTask1 running on core ");
+  Serial.println(xPortGetCoreID());
+  for (;;)
+  {
+    audio.loop();
+    vTaskDelay(2);
+  }
+}
+//*******************************
+// START loop
+//*******************************
+unsigned long timer_prev = 0;
+unsigned long timer_prev_w = 0;
+int timer_interval = 2500;
+bool allow = true;
+int timer_interval_W = 3000;
+bool allow_W = true;
+bool direct, direct1;
+int x_sprite = 65;
+void loop()
+{
+  myEncoder();
+  // для возврата из меню
+  intervalForMenu = millis() - currentMillis;
+  if (intervalForMenu > 10000 && showRadio == 1) // если время истекло
+  {
+    tft.fillRect(2, 2, 310, ypos + 8, TFT_BLACK);
+    NEWStation = OLDStation;
+    printStation(NEWStation);
+    getClock = true; // получить время при переходе от меню станций
+    showRadio = 0;
+    print_Img(258, 90, weather.icon);
+    first = true;
+    f_startProgress = true;
+  }
+  if (showRadio == 0)
+  {
+    clock_on_core0();
+    // заполнить экран после меню станций
+    if (first && CurrentDate != "Not sync" && CurrentDate != "20.02.1611")
+    {
+      tft.setTextSize(1);
+      tft.setFreeFont(&CourierCyr12pt8b);
+      tft.setTextColor(TFT_YELLOW);
+      tft.setCursor(95, 86);
+      tft.print(CurrentDate);
+      tft.fillRect(228, 151, 30, 30, TFT_BLACK);
+      tft.setCursor(222, 146);
+      tft.print(utf8rus(days[CurrentWeek]));
+      tft.setFreeFont(RU10);
+      tft.setCursor(85, 170);
+      tft.print(utf8rus(weather.name) + ", " + String(weather.temp, 1) + "`" + "C");
+      drawlineClock();
+      print_Img(258, 90, weather.icon);
+      filePosition();
+      first = false;
+    }
+    if (NEWStation != OLDStation)
+    {
+      uint16_t ind;
+      ind = StationList[NEWStation].indexOf(space);
+      newSt = StationList[NEWStation].substring(ind + 1, StationList[NEWStation].length());
+      audio.pauseResume();
+      printStation(NEWStation);
+      delay(100);
+      audio.connecttohost(newSt.c_str()); // sl); // новая станция
+      OLDStation = NEWStation;
+      delay(300);
+      printCodecAndBitrate();    
+    }
+  }
+  // Level volume
+  uint16_t volByte = audio.getVUlevel();
+  if (rnd) // для выборки всех значений длины индикатора уровня
+  {
+    y1_random = 204 - highByte(volByte); // получить число и отработать
+    y2_random = 204 - lowByte(volByte);
+    if (highByte(volByte) > 204)
+      y1_random = 240 - 195;
+    if (lowByte(volByte) > 204)
+      y2_random = 240 - 195;
+    y1_current = y1_random;
+    y2_current = y2_random;
+    if (y1_current % 2 > 0)
+      y1_current--; // на четность
+    if (y2_current % 2 > 0)
+      y2_current--; // на четность
+    rnd = false;    // Пройти до конца
+  }
+  if (vumetersDelay < millis())
+  {
+    if (f_startProgress)
+    {
+      y_progress = 204;
+      y1_current = 204;
+      y1_show = 204;
+      y1_prev = 204;
+      y2_current = 204;
+      y2_show = 204;
+      y2_prev = 204;
+      rnd = false;
+      y1_random = 204; // левый край после возврата из меню и при старте
+      y2_random = 204;
+      f_startProgress = false;
+    }
+    soundShow();
+    vumetersDelay = millis() + 25;
+  }
+  // Scrolling
+  // time for streamtitle
+  if (showRadio == 3 || showRadio == 0)
+  {
+    unsigned long timer_curr = millis();
+    if (timer_curr - timer_prev >= timer_interval)
+    {
+      allow = !allow;
+      timer_prev = timer_curr;
+      direct = random(0, 2);
+      wifiLevel();
+    }
+    // Time for weather
+    unsigned long timer_curr_w = millis();
+    if (timer_curr_w - timer_prev_w >= timer_interval_W)
+    {
+      allow_W = !allow_W;
+      direct1 = random(0, 3);
+      timer_prev_w = timer_curr_w;
+    }
+
+    if (allow && !allow_W)
+    {
+      scrollMain(false, 65, 177, 3);
+    }
+    if (allow_W && !allow)
+    {
+      scrollMainWeather(false, 2, 39, 3);
+    }
+  }
+  if (showRadio == 3)
+    clockLoop();
+  ircontrol();
+
+  if ((millis() - lastTime) > timerDelay * 60 * 1000)
+  {
+    getWeather();
+    print_Img(258, 90, weather.icon);
+    // TFT_weather_cur();
+    lastTime = millis();
+  }
+
+  if (Serial.available() > 0)
+  {
+    String incomming = Serial.readString();
+    Serial.println(incomming);
+    if (incomming == "res")
+    {
+      WiFi.disconnect(false, true);
+      wifiManager.resetSettings();
+      Serial.println("Reseting creditals password.");
+      delay(2000);
+      ESP.restart();
+    }
+    if (incomming == "1")
+      NEWStation++;
+    if (incomming == "2")
+      NEWStation--;
+    if (incomming == "3")
+      showRadio = 1;
+  }
+} // end LOOP
+//*********************************
+// Scrolling
+//*********************************
+void scrollMain(bool directTo, int left_coner_x, int left_coner_y, int speed_scroll) // to loop
+{                                                                                    // в loop
+  delay(speed_scroll);
+  // Влево
+  if (!directTo)
+  {
+    txtSprite.drawString(MessageToScroll_1, x_scroll_L, 2);
+    txtSprite.pushSprite(left_coner_x, left_coner_y); // Верхний левый угол спрайта
+    x_scroll_L--;
+    x_scroll_R = x_scroll_L;                            // Влево
+    if (abs(x_scroll_L) > width_txt + TFT_HEIGHT + 200) //+ tft.width()
+    {
+      x_scroll_L = TFT_HEIGHT + 200;
+      x_scroll_R = -width_txt - TFT_HEIGHT - 200;
+    }
+  }
+  // Вправо
+  if (directTo)
+  {
+    txtSprite.drawString(MessageToScroll_1, x_scroll_R, 2);
+    txtSprite.pushSprite(left_coner_x, left_coner_y); // Верхний левый угол спрайта
+    x_scroll_R++;
+    x_scroll_L = x_scroll_R;     // Вправо
+    if (x_scroll_R > TFT_HEIGHT) //+ tft.width());
+    {
+      x_scroll_L = TFT_HEIGHT;
+      x_scroll_R = -width_txt - TFT_HEIGHT - 200; // - tft.width();
+    }
+  }
+}
+
+void scrollMainWeather(bool directTo, int left_coner_x, int left_coner_y, int speed_scroll) // to loop
+{                                                                                           // в loop
+  delay(speed_scroll);
+  // Влево
+  if (!directTo)
+  {
+    WeatherSpr.drawString(MessageToScroll_2, x_scroll_LW, 2);
+    WeatherSpr.pushSprite(left_coner_x, left_coner_y); // Верхний левый угол спрайта
+    x_scroll_LW--;
+    x_scroll_RW = x_scroll_LW;                            // Влево
+    if (abs(x_scroll_LW) > width_txtW + TFT_HEIGHT + 200) //+ tft.width()
+    {
+      x_scroll_LW = TFT_HEIGHT + 200;
+      x_scroll_RW = -width_txtW - TFT_HEIGHT - 200;
+    }
+  }
+  // Вправо
+  if (directTo)
+  {
+    WeatherSpr.drawString(MessageToScroll_2, x_scroll_RW, 2);
+    WeatherSpr.pushSprite(left_coner_x, left_coner_y); // Верхний левый угол спрайта
+    x_scroll_RW++;
+    x_scroll_LW = x_scroll_RW;    // Вправо
+    if (x_scroll_RW > TFT_HEIGHT) //+ tft.width());
+    {
+      x_scroll_LW = TFT_HEIGHT;
+      x_scroll_RW = -width_txtW - TFT_HEIGHT - 200; // - tft.width();
+    }
+  }
+}
+// Показать VUmeter
+void soundShow()
+{
+  int x_show = 3;
+
+  if (y1_prev > y1_current)
+  {
+    if (y1_prev > 130)
+    {
+      tft.fillRect(x_show, y1_prev, 25, 4, TFT_LIGHTGREY);
+    }
+    else
+    {
+      tft.fillRect(x_show, y1_prev, 25, 4, TFT_YELLOW);
+    }
+    y1_prev = y1_prev - 6;
+  }
+
+  if (y1_prev < y1_current)
+  {
+    tft.fillRect(x_show, y1_prev, 25, 4, TFT_BLACK);
+
+    y1_prev = y1_prev + 6;
+  }
+  if (y2_prev > y2_current)
+  {
+    if (y2_prev > 130)
+    {
+      tft.fillRect(x_show + 28, y2_prev, 25, 4, TFT_LIGHTGREY);
+    }
+    else
+    {
+      tft.fillRect(x_show + 28, y2_prev, 25, 4, TFT_YELLOW);
+    }
+    y2_prev = y2_prev - 6;
+  }
+  if (y2_prev < y2_current)
+  {
+    tft.fillRect(x_show + 28, y2_prev, 25, 4, TFT_BLACK);
+    y2_prev = y2_prev + 6;
+  }
+  rnd = true;
+}
+//---------------------
+//  Clock
+//--------------------
+byte omm = 99, oss = 99;
+uint32_t targetTime_clock = 0; // update clock every second
+byte xcolon = 0, xsecs_clock = 0;
+uint8_t hh, mm, ss; // for new clock
+
+// -- Get clock ntp server ---
+void clock_on_core0()
+{
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.setFreeFont(DIG20); // DIG20
+  tft.setTextSize(2);     // 3
+
+  ntp.tick();
+  delay(2);
+  hh = ntp.hour();
+  mm = ntp.minute();
+  ss = ntp.second();
+  CurrentDate = ntp.dateString();
+  CurrentWeek = ntp.dayWeek();
+
+  if (targetTime_clock < millis())
+  {
+    // Set next update for 1 second later
+    targetTime_clock = millis() + 1000;
+    getClock = true;
+    // Adjust the time values by adding 1 second
+    ss++; // Advance second
+    if (ss == 60)
+    {           // Check for roll-over
+      ss = 0;   // Reset seconds to zero
+      omm = mm; // Save last minute time for display update
+      mm++;     // Advance minute
+      if (mm > 59)
+      { // Check for roll-over
+        mm = 0;
+        hh++; // Advance hour
+        if (hh > 23)
+        {         // Check for 24hr roll-over (could roll-over on 13)
+          hh = 0; // 0 for 24 hour clock, set to 1 for 12 hour clock
+        }
+      }
+    }
+
+    // Update digital time
+    int xpos_clock = 65;
+    int ypos_clock = 105; // Top left corner ot clock text, about half way down
+    int ysecs_clock = ypos_clock + 30;
+
+    if (omm != mm || getClock == true)
+    { // Redraw hours and minutes time every minute
+      omm = mm;
+      // Draw hours and minutes
+      if (hh < 10)
+        xpos_clock += tft.drawNumber(0, xpos_clock, ypos_clock); // Add hours leading zero for 24 hr clock
+      xpos_clock += tft.drawNumber(hh, xpos_clock, ypos_clock);  // Draw hours
+      xcolon = xpos_clock;                                       // Save colon coord for later to flash on/off later
+      xpos_clock += tft.drawChar(':', xpos_clock, ypos_clock + 40);
+      if (mm < 10)
+        xpos_clock += tft.drawNumber(0, xpos_clock, ypos_clock); // Add minutes leading zero
+      xpos_clock += tft.drawNumber(mm, xpos_clock, ypos_clock);  // Draw minutes
+      xsecs_clock = xpos_clock;                                  // Sae seconds 'x' position for later display updates
+    }
+    if (oss != ss || getClock == true)
+    { // Redraw seconds time every second
+      oss = ss;
+      xpos_clock = xsecs_clock;
+      tft.setTextSize(2);
+      if (ss % 2)
+      {                                             // Flash the colons on/off
+        tft.setTextColor(0x39C4, TFT_BLACK);        // Set colour to grey to dim colon
+        tft.drawChar(':', xcolon, ypos_clock + 40); // Hour:minute colon
+                                                    //  xpos += tft.drawChar(':', xsecs, ysecs); // Seconds colon
+        tft.setTextColor(0x9772, TFT_BLACK);        // Set colour back to yellow
+      }
+      else
+      {
+        tft.drawChar(':', xcolon, ypos_clock + 40); // Hour:minute colon
+                                                    // xpos += tft.drawChar(':', xsecs, ysecs); // Seconds colon
+      }
+      // Draw seconds
+      tft.setTextSize(1);
+      if (ss < 10)
+        xpos_clock += tft.drawNumber(0, xpos_clock + 12, ysecs_clock - 34); // Add leading zero
+      tft.drawNumber(ss, xpos_clock + 10, ysecs_clock - 34);                // Draw seconds
+    }
+  }
+  getClock = false;
+}
+
+//**********************************
+// File position Уровень громкости
+//**********************************
+int x_FP = 65, y_FP = ypos + 12; // position in line
+void filePosition()
+{
+  Serial.print("Volume = ");
+  Serial.println(volume);
+  volume = audio.getVolume();
+  tft.fillRect(x_FP, y_FP - 2, 250, 8, TFT_BLACK);
+  tft.drawRect(x_FP, y_FP, 252, 6, TFT_MAGENTA);
+  tft.fillRect(x_FP, y_FP, volume * 10, 6, TFT_MAGENTA);
+}
+//-------------------
+// Encoder
+//-------------------
+
+void myEncoder()
+{
+  enc1.tick();
+  if (enc1.right())
+  {
+    if (showRadio == 0 || showRadio == 3)
+    {
+
+      stations = false;
+      nextStation(stations);
+      printStation(NEWStation);
+    }
+    if (showRadio == 1)
+    {
+      stations = true; // вниз по меню
+      first = true;
+      nextStation(stations);
+      stationDisplay(NEWStation);
+      currentMillis = millis(); // Пока ходим по меню
+    }
+    // если меню
+  }
+  if (enc1.left())
+  {
+    if (showRadio == 0 || showRadio == 3)
+    {
+
+      stations = true;
+      nextStation(stations);
+      printStation(NEWStation);
+    }
+    if (showRadio == 1)
+    {
+      stations = false; // вверх по меню
+      nextStation(stations);
+      stationDisplay(NEWStation);
+      currentMillis = millis(); // Пока ходим по меню
+      first = true;
+    }
+  }
+  if (enc1.click())
+  { // Меню станций
+
+    switch (showRadio)
+    {
+    case 0:
+      showRadio = 1;
+      break;
+    case 1:
+      showRadio = 0;
+      break;
+    case 3:
+      showRadio = 0;
+      break;
+    default:
+      break;
+    }
+    f_startProgress = true; // for starting
+    if (showRadio == 1)
+    {
+      currentMillis = millis(); // начало отсчета времени простоя
+      tft.fillRect(2, 2, 312, ypos + 14, TFT_BLACK);
+      stationDisplay(NEWStation);
+      first = true;
+    }
+    if (showRadio == 0)
+    {
+      first = true;
+      tft.fillRect(2, 2, 312, ypos + 8, TFT_BLACK);
+      printStation(NEWStation);
+      getClock = true; // получить время при переходе от меню станций
+    }
+  }
+  if (enc1.leftH())
+  {
+    volume--;
+    audio.setVolume(volume);
+    filePosition();
+  }
+  if (enc1.rightH())
+  {
+    volume++;
+    audio.setVolume(volume);
+    filePosition();
+  }
+}
+//----------------------
+//   Name Stations
+//------------------------
+void menuStation() //   Name Stations
+{
+  // tft.fillRect(0, 25, 320, 180, TFT_BLACK);
+  int i = 0;
+  int ind = 0;
+  while (i <= numbStations)
+  { // list stations
+    delay(1);
+    ind = StationList[i].indexOf(space);
+    nameStations[i] = make_str(utf8rus(StationList[i].substring(0, ind))); // Получили наименования станций
+    i++;
+  }
+}
+//----------------------------------
+// ******* Menu stations ***********
+void stationDisplay(int st)
+{
+  uint8_t i;
+  i = 0;
+  while (i < 7)
+  {
+    displayStations[i] = "";
+    i++;
+  }
+  tft.setTextSize(1);
+  tft.setFreeFont(&CourierCyr12pt8b);
+  tft.setTextColor(TFT_CYAN, TFT_BLACK);
+
+  // счетчик для меню
+  int stanonMenu = 3; // Положение текущей станции в меню
+  int k;              //
+  int p;              // счечик по листу станций
+  k = st - 3;
+  // Serial.printf("k =%d", k);
+  // Serial.printf(" st = %d", st);
+  // Serial.println("");
+
+  if (k < 0 && k != -3)
+  {
+    p = numbStations + k + 1;
+    i = 0;
+    while (p <= numbStations)
+    {
+      displayStations[i] = nameStations[p];
+      i++;
+      p++;
+    }
+    p = 0;
+    while (i <= 7)
+    {
+      displayStations[i] = nameStations[p];
+      i++;
+      p++;
+    }
+  }
+
+  if (k == -3)
+  {
+    i = 0;
+    p = numbStations - 2;
+    while (i <= 2)
+    {
+      displayStations[i] = nameStations[p];
+      i++;
+      p++;
+    }
+    p = 0;
+    while (i <= 7)
+    {
+      displayStations[i] = nameStations[p];
+      i++;
+      p++;
+    }
+  }
+  p = k;
+  if (k >= 0)
+  {
+    i = 0;
+    while (i <= 7)
+    {
+      displayStations[i] = nameStations[p];
+      p++;
+      i++;
+      if (p == numbStations + 1)
+        p = 0;
+    }
+  }
+  // выводим на дисплей
+  i = 0;
+  k = 5;
+  while (i <= 7)
+  {
+    tft.fillRect(65, k, 246, 25, TFT_BLACK);
+    tft.drawString(utf8rus(displayStations[i]), 65, k);
+    i++;
+    k = k + 25;
+  }
+  tft.fillRect(65, stanonMenu * 25, 246, 27, TFT_YELLOW);
+  tft.setTextColor(TFT_BLACK, TFT_YELLOW);
+  tft.drawString(utf8rus(displayStations[stanonMenu]), 65, stanonMenu * 25);
+}
+// Разделитель минут и секунд
+void drawlineClock()
+{ //             x    y    x    y
+  tft.fillRect(213, 105, 3, 40, 0x9772);
+  tft.fillRect(213, 125, 40, 3, 0x9772);
+}
+// Дополнить строку пробелами
+String make_str(String str)
+{
+  for (int i = 0; i < (18 - str.length()); i++)
+    str += char(32);
+  return str;
+}
+//----------------------------
+// Вывод наименования станции
+//----------------------------
+void printStation(uint8_t indexOfStation)
+{
+  tft.setTextColor(0x9772, TFT_BLACK);
+  // tft.setCursor(50, 44);
+  tft.setTextSize(1);
+  tft.setFreeFont(BAHAMAS);
+  tft.drawRect(0, 0, 320, 34, 0x9772);
+  tft.fillRect(2,2,316,31,TFT_BLACK);
+  tft.drawString(utf8rus(nameStations[indexOfStation]), 5, 2);
+} // end PrintStation
+
+//----------------------------
+void printCodecAndBitrate()
+{
+  tft.setTextColor(0x9772, TFT_BLACK);
+  tft.setFreeFont(&CourierCyr10pt8b);
+  tft.setTextSize(1);
+  // tft.drawString(String(bitrateInt), 5, ypos + 28);
+  tft.fillRect(4, ypos + 26, 62, 23, TFT_BLACK);
+  tft.drawString(String(audio.getCodecname()).substring(0,3), 276, ypos + 28);
+  int bit = bitrate.toInt();
+  if (bit < 128000)
+  {
+    tft.drawString(String(bit).substring(0, 2) + "k ", 5, ypos + 28);
+  }
+  else
+  {
+    tft.drawString(bitrate.substring(0, 3) + "k", 5, ypos + 28);
+  }
+  EEPROM.write(2, NEWStation);
+  EEPROM.commit();
+}
+
+//**********************
+// Переключение станций
+//**********************
+void nextStation(bool stepStation)
+{
+  if (stepStation)
+  {
+    if (NEWStation != numbStations)
+    {
+      NEWStation++;
+    }
+    else
+    {
+      NEWStation = 0;
+    }
+  }
+  else
+  {
+    if (NEWStation != 0)
+    {
+      NEWStation--;
+    }
+    else
+    {
+      NEWStation = numbStations;
+    }
+  }
+  EEPROM.write(2, NEWStation);
+  EEPROM.commit();
+}
+
+// SPIFFS Заполняем меню станций и наименований станций
+void initSpiffs() //
+{
+  if (!SPIFFS.begin(true))
+  {
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
+  }
+  File myFile;
+  File root = SPIFFS.open("/");
+
+  myFile = SPIFFS.open("/playlist.txt", FILE_READ);
+  if (!myFile)
+  {
+    Serial.println("------File does not exist!------");
+  }
+  int i = 0;
+  while (myFile.available())
+  {
+    StationList[i] = myFile.readStringUntil('\n');
+    // Serial.println('\t' + StationList[i]);
+    i++;
+  }
+  myFile.close();
+  numbStations = i - 1; // start numb station
+  menuStation();        // заполнили nameStattions
+  listStaton();
+}
+
+// EEPROM
+void readEEprom()
+{
+  if (!EEPROM.begin(5))
+  {
+    Serial.println("failed to initialise EEPROM");
+    delay(100);
+  }
+  Serial.println(" bytes read from Flash . Values are:");
+
+  if (EEPROM.read(2) > 200)
+  {
+    NEWStation = 0;
+  }
+  else
+  {
+    NEWStation = EEPROM.read(2);
+  }
+}
+//********** WiFi*************
+void initWiFi()
+{
+  WiFi.mode(WIFI_STA);
+  WiFi.begin();
+  WiFi.persistent(false);
+  WiFi.setAutoReconnect(true);
+  Serial.println("Connecting to WiFi ..");
+  while (WiFi.status() != WL_CONNECTED && millis() < 15 * 1000)
+  {
+    delay(500);
+    Serial.print(".");
+  }
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    Serial.println("");
+    Serial.println("WiFi connected");
+    Serial.print("IP: ");
+    Serial.println(WiFi.localIP());
+  }
+  else
+  {
+    Serial.println("WiFi not connected, starting WiFiManager");
+    tft.println("WiFi not connected..");
+    tft.println("Starting WiFiManager");
+    tft.println("SSID: ESP32-Clock");
+    tft.println("IP: 192.168.4.1");
+    wifiManager.autoConnect("ESP32-Clock");
+    delay(2000);
+  }
+
+  Serial.println("\tConnecting Wifi...");
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    Serial.println("\tWiFi connected");
+    Serial.print("\tIP address: = ");
+    Serial.println(WiFi.localIP());
+    Serial.print("\tSSID = ");
+    Serial.println(WiFi.SSID());
+    Serial.println("\tRSSI :" + String(WiFi.RSSI()));
+
+    String bootlog;
+    bootlog += F("\n\t");
+    bootlog += F("CHIPmodel  = ");
+    bootlog += ESP.getChipModel();
+    bootlog += F("\n\t");
+    bootlog += F("Revision ");
+    bootlog += ESP.getChipRevision();
+    bootlog += F("\n\t");
+    bootlog += F("Cores = ");
+    bootlog += ESP.getChipCores();
+    bootlog += F("\n\t");
+    bootlog += F("PSRAM = ");
+    bootlog += ESP.getPsramSize();
+    bootlog += F("\n\t");
+    bootlog += F("FlashChipSize = ");
+    bootlog += ESP.getFlashChipSize();
+    bootlog += F("\n\t");
+    bootlog += F("HeapSize = ");
+    bootlog += ESP.getHeapSize();
+    bootlog += F("\n\t");
+    bootlog += F("FreeHeap = ");
+    bootlog += ESP.getFreeHeap();
+    bootlog += F("\n\t");
+    bootlog += F("SkethSize = ");
+    bootlog += ESP.getSketchSize();
+    bootlog += F("\n\t");
+    bootlog += F("FreeSkethSpace = ");
+    bootlog += ESP.getFreeSketchSpace();
+    bootlog += F("\n\t");
+    bootlog += F("FreePsram = ");
+    bootlog += ESP.getFreePsram();
+    Serial.print('\t');
+    Serial.println(bootlog);
+  }
+}
+
+void wifiLevel()
+{
+  uint16_t x_wifi = 232, y_wifi = ypos + 40, y_lev_wifi = 3;
+
+  if (WiFi.RSSI() >= -60)
+  {
+    tft.fillRect(x_wifi + 8, y_wifi, 3, y_lev_wifi + 3, TFT_BLUE);
+    tft.fillRect(x_wifi + 13, y_wifi - 2, 3, y_lev_wifi + 5, TFT_BLUE);
+    tft.fillRect(x_wifi + 18, y_wifi - 2 * 2, 3, y_lev_wifi + 7, TFT_BLUE);
+    tft.fillRect(x_wifi + 23, y_wifi - 2 * 3, 3, y_lev_wifi + 9, TFT_BLUE);
+    tft.fillRect(x_wifi + 28, y_wifi - 2 * 4, 3, y_lev_wifi + 11, TFT_BLUE);
+    tft.fillRect(x_wifi + 33, y_wifi - 2 * 5, 3, y_lev_wifi + 13, TFT_BLUE);
+  }
+  if (WiFi.RSSI() < -60 && WiFi.RSSI() >= -70)
+  {
+    tft.fillRect(x_wifi + 8, y_wifi, 3, y_lev_wifi + 3, TFT_BLUE);
+    tft.fillRect(x_wifi + 13, y_wifi - 2, 3, y_lev_wifi + 5, TFT_BLUE);
+    tft.fillRect(x_wifi + 18, y_wifi - 2 * 2, 3, y_lev_wifi + 7, TFT_BLUE);
+    tft.fillRect(x_wifi + 23, y_wifi - 2 * 3, 3, y_lev_wifi + 9, TFT_BLUE);
+    tft.fillRect(x_wifi + 28, y_wifi - 2 * 4, 3, y_lev_wifi + 11, TFT_BLUE);
+    tft.fillRect(x_wifi + 33, y_wifi - 2 * 5, 3, y_lev_wifi + 13, TFT_LIGHTGREY);
+  }
+  if (WiFi.RSSI() < -70 && WiFi.RSSI() > -80)
+  {
+    tft.fillRect(x_wifi + 8, y_wifi, 3, y_lev_wifi + 3, TFT_BLUE);
+    tft.fillRect(x_wifi + 13, y_wifi - 2, 3, y_lev_wifi + 5, TFT_BLUE);
+    tft.fillRect(x_wifi + 18, y_wifi - 2 * 2, 3, y_lev_wifi + 7, TFT_BLUE);
+    tft.fillRect(x_wifi + 23, y_wifi - 2 * 3, 3, y_lev_wifi + 9, TFT_BLUE);
+    tft.fillRect(x_wifi + 28, y_wifi - 2 * 4, 3, y_lev_wifi + 11, TFT_LIGHTGREY);
+    tft.fillRect(x_wifi + 33, y_wifi - 2 * 5, 3, y_lev_wifi + 13, TFT_LIGHTGREY);
+  }
+
+  if (WiFi.RSSI() < -80 && WiFi.RSSI() > -90)
+  {
+    tft.fillRect(x_wifi + 8, y_wifi, 3, y_lev_wifi + 3, TFT_BLUE);
+    tft.fillRect(x_wifi + 13, y_wifi - 2, 3, y_lev_wifi + 5, TFT_BLUE);
+    tft.fillRect(x_wifi + 18, y_wifi - 2 * 2, 3, y_lev_wifi + 7, TFT_BLUE);
+    tft.fillRect(x_wifi + 23, y_wifi - 2 * 3, 3, y_lev_wifi + 9, TFT_LIGHTGREY);
+    tft.fillRect(x_wifi + 28, y_wifi - 2 * 4, 3, y_lev_wifi + 11, TFT_LIGHTGREY);
+    tft.fillRect(x_wifi + 33, y_wifi - 2 * 5, 3, y_lev_wifi + 13, TFT_LIGHTGREY);
+  }
+  if (WiFi.RSSI() < -90 && WiFi.RSSI() > -100)
+  {
+    tft.fillRect(x_wifi + 8, y_wifi, 3, y_lev_wifi + 3, TFT_BLUE);
+    tft.fillRect(x_wifi + 13, y_wifi - 2, 3, y_lev_wifi + 5, TFT_BLUE);
+    tft.fillRect(x_wifi + 18, y_wifi - 2 * 2, 3, y_lev_wifi + 7, TFT_LIGHTGREY);
+    tft.fillRect(x_wifi + 23, y_wifi - 2 * 3, 3, y_lev_wifi + 9, TFT_LIGHTGREY);
+    tft.fillRect(x_wifi + 28, y_wifi - 2 * 4, 3, y_lev_wifi + 11, TFT_LIGHTGREY);
+    tft.fillRect(x_wifi + 33, y_wifi - 2 * 5, 3, y_lev_wifi + 13, TFT_LIGHTGREY);
+  }
+}
+
+String readFile(fs::FS &fs, const char *path)
+{
+  Serial.printf("\tReading file: %s\r\n", path);
+
+  File file = fs.open(path);
+  if (!file || file.isDirectory())
+  {
+    Serial.println("- failed to open file for reading");
+    return String();
+  }
+  String fileContent;
+  while (file.available())
+  {
+    fileContent = file.readStringUntil('\n');
+    break;
+  }
+  file.close();
+  return fileContent;
+}
+
+//----------filesystem
+String processor_playlst(const String &var)
+{
+  // Serial.println(var);
+  // Serial.println(listRadio);
+  if (var == "nameST")
+  {
+    return listRadio;
+  }
+  return String();
+}
+
+String processor_update(const String &var)
+{
+  // Serial.println(var);
+  if (var == "list")
+  {
+    return filelist;
+  }
+  return String();
+}
+
+void listStaton()
+{
+  String partlistStation;
+  uint8_t i = 0;
+  while (i <= numbStations)
+  {
+    int ind_to_space = StationList[i].indexOf(space);
+    String nameStat = StationList[i].substring(0, ind_to_space);
+
+    String newStat = "https://" + StationList[i].substring(ind_to_space + 1, StationList[i].length());
+
+    partlistStation += String("<tr><td>") + String(i) + String("</td>") + String("<td>") + nameStat + String("</td>") + String("<td>") + newStat + String("</td></tr>");
+    listRadio = String("<table class=\"table table-success table-striped\"> <thead><tr><th>№</th><th>Station name</th><th>Station url</th></tr></thead><tbody>") + partlistStation + String("</tbody></table>");
+    i++;
+  }
+}
+
+void handleDoUpdate(AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len, bool final)
+{
+  if (!index)
+  {
+    content_len = request->contentLength();
+    int cmd = (filename.indexOf("spiffs") > -1) ? U_PART : U_FLASH;
+    if (!Update.begin(UPDATE_SIZE_UNKNOWN, cmd))
+    {
+      Update.printError(Serial);
+    }
+  }
+
+  if (Update.write(data, len) != len)
+  {
+    Update.printError(Serial);
+    Serial.printf("Progress: %d%%\n", (Update.progress() * 100) / Update.size());
+  }
+
+  if (final)
+  {
+    AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", "Ok");
+    response->addHeader("Refresh", "30");
+    response->addHeader("Location", "/");
+    request->send(response);
+    if (!Update.end(true))
+    {
+      Update.printError(Serial);
+    }
+    else
+    {
+      Serial.println("Update complete");
+      Serial.flush();
+      ESP.restart();
+    }
+  }
+}
+
+void handleDoUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
+{
+  if (!index)
+  {
+    content_len = request->contentLength();
+    Serial.printf("UploadStart: %s\n", filename.c_str());
+  }
+  if (opened == false)
+  {
+    opened = true;
+    file = SPIFFS.open(String("/") + filename, FILE_WRITE);
+    if (!file)
+    {
+      Serial.println("- failed to open file for writing");
+      return;
+    }
+  }
+  if (file.write(data, len) != len)
+  {
+    Serial.println("- failed to write");
+    return;
+  }
+  if (final)
+  {
+    AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", "Ok");
+    response->addHeader("Refresh", "20");
+    response->addHeader("Location", "/filesystem");
+    request->send(response);
+    file.close();
+    opened = false;
+    Serial.println("---------------");
+    Serial.println("Upload complete");
+  }
+}
+
+void printProgress(size_t prg, size_t sz)
+{
+  Serial.printf("Progress: %d%%\n", (prg * 100) / content_len);
+}
+//------------------
+
+void notFound(AsyncWebServerRequest *request)
+{
+  if (request->url().startsWith("/"))
+  {
+    request->send(SPIFFS, request->url(), String(), true);
+  }
+  else
+  {
+    request->send(404);
+  }
+}
+
+void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
+{
+  // filelist = "";
+  int i = 0;
+  String partlist;
+  File root = fs.open(dirname);
+  if (!root)
+  {
+    Serial.println("- failed to open directory");
+    return;
+  }
+  if (!root.isDirectory())
+  {
+    Serial.println(" - not a directory");
+    return;
+  }
+
+  File file = root.openNextFile();
+  while (file)
+  {
+    if (file.isDirectory())
+    {
+
+      if (levels)
+      {
+        listDir(fs, file.name(), levels - 1);
+      }
+    }
+    else
+    {
+
+      i++;
+      String st_after_symb = String(file.name()).substring(String(file.name()).indexOf("/") + 1);
+
+      partlist += String("<tr><td>") + String(i) + String("</td><td>") + String("<a href='") + String(file.name()) + String("'>") + st_after_symb + String("</td><td>") + String(file.size() / 1024) + String("</td><td>") + String("<input type='button' class='btndel' onclick=\"deletef('") + String(file.name()) + String("')\" value='X'>") + String("</td></tr>");
+      filelist = String("<table><tbody><tr><th>#</th><th>File name</th><th>Size(KB)</th><th></th></tr>") + partlist + String(" </tbody></table>");
+    }
+    file = root.openNextFile();
+  }
+  filelist = String("<table><tbody><tr><th>#</th><th>File name</th><th>Size(KB)</th><th></th></tr>") + partlist + String(" </tbody></table>");
+}
+
+void deleteFile(fs::FS &fs, const String &path)
+{
+  Serial.printf("Deleting file: %s\r\n", path);
+  if (fs.remove('/' + path))
+  {
+    Serial.println("- file deleted");
+  }
+  else
+  {
+    Serial.println("- delete failed");
+  }
+}
+
+String utf8rus(String source)
+{
+  int i, k;
+  String target;
+  unsigned char n;
+  char m[2] = {'0', '\0'};
+  k = source.length();
+  i = 0;
+  while (i < k)
+  {
+    delay(1);
+    n = source[i];
+    i++;
+    if (n >= 127)
+    {
+      switch (n)
+      {
+      case 208:
+      {
+        n = source[i];
+        i++;
+        if (n == 129)
+        {
+          n = 192; // перекодируем букву Ё
+          break;
+        }
+        break;
+      }
+      case 209:
+      {
+        n = source[i];
+        i++;
+        if (n == 145)
+        {
+          n = 193; // перекодируем букву ё
+          break;
+        }
+        break;
+      }
+      }
+    }
+    m[0] = n;
+    target = target + String(m);
+  }
+  return target;
+}
+void audio_showstreamtitle(const char *info)
+{
+  Serial.println(info);
+  txtSprite.fillSprite(TFT_BLACK);
+  MessageToScroll_1 = "";
+  MessageToScroll_1 = F(" ");
+  MessageToScroll_1 += info;
+  MessageToScroll_1 = utf8rus(MessageToScroll_1);
+  MessageToScroll_1 += F(" ");
+  txtSprite.setTextSize(1);
+  width_txt = tft.textWidth(MessageToScroll_1);
+  x_scroll_R = -width_txt;
+  x_scroll_L = width_txt;
+}
+
+//--weather ---
+void Get_Weather_http(String &MSG_http)
+{
+  Serial.println('\t' + MSG_http);
+  http.begin(client, MSG_http);
+}
+
+bool decode_json(Stream &jsonStr)
+{
+  DynamicJsonDocument doc(1024);
+  DeserializationError error = deserializeJson(doc, jsonStr);
+  if (error)
+  {
+    Serial.print(F("\tdeserializeJson() failed: "));
+    Serial.println(error.f_str());
+    return false;
+  }
+  else
+  {
+    Serial.println("\tdeserializeJson() без ошибок.");
+    JsonObject doc_OPW = doc.as<JsonObject>();
+    weather.lon = doc_OPW["coord"]["lon"].as<float>();
+    weather.lat = doc_OPW["coord"]["lat"].as<float>();
+    weather.description = doc_OPW["weather"][0]["description"].as<const char *>();
+    weather.icon = doc_OPW["weather"][0]["icon"].as<const char *>();
+    weather.temp = doc_OPW["main"]["temp"].as<float>();
+    weather.feels_like = doc_OPW["main"]["feels_like"].as<float>();
+    weather.pressure = doc_OPW["main"]["pressure"].as<int>();
+    weather.humidity = doc_OPW["main"]["humidity"].as<int>();
+    weather.grnd_level = doc_OPW["main"]["grnd_level"].as<int>();
+    weather.visibility = doc_OPW["visibility"].as<int>();
+    weather.speed = doc_OPW["wind"]["speed"].as<float>();
+    weather.deg = doc_OPW["wind"]["deg"].as<int>();
+    weather.gust = doc_OPW["wind"]["gust"].as<float>();
+    weather.dt = doc_OPW["dt"].as<long>();
+    weather.country = doc_OPW["sys"]["country"].as<const char *>();
+    weather.sunrise = doc_OPW["sys"]["sunrise"].as<long>();
+    weather.sunset = doc_OPW["sys"]["sunset"].as<long>();
+    weather.id = doc_OPW["id"].as<long>();
+    weather.name = doc_OPW["name"].as<const char *>();
+    return true;
+  } // end else
+} // end decode_json
+
+void getWeather()
+{
+  if (WiFi.status() == WL_CONNECTED)
+  { // проверяем соединение WiFi
+    String host_uri;
+    host_uri.reserve(150);
+    host_uri += F("http://api.openweathermap.org/data/2.5/");
+    host_uri += F("weather?lat=");
+    host_uri += Latitude;
+    host_uri += F("&lon=");
+    host_uri += Longitude;
+    host_uri += F("&lang=ru&appid=");
+    host_uri += apikey;
+    host_uri += F("&mode=json&units=metric&cnt=1");
+    client.stop();
+    Get_Weather_http(host_uri);
+    int httpCode = http.GET();
+    Serial.print('\t');
+    Serial.println(httpCode);
+    if (httpCode > 0)
+    {
+      Stream &response = http.getStream(); // ответ
+      decode_json(response);               // парсинг данных из JsonObjectданных из JsonObject
+#ifdef Serial_Print                        //  отладка
+      Serial.println(" - - weather - - ");
+      Serial.print("weather.lon ");
+      Serial.println(weather.lon);
+      Serial.print("weather.lat ");
+      Serial.println(weather.lat);
+      Serial.print("weather.description ");
+      Serial.println(weather.description);
+      Serial.print("weather.icon ");
+      Serial.println(weather.icon);
+      Serial.print("weather.temp ");
+      Serial.println(weather.temp);
+      Serial.print("weather.feels_like ");
+      Serial.println(weather.feels_like);
+      Serial.print("weather.pressure ");
+      Serial.println(weather.pressure);
+      Serial.print("weather.humidity ");
+      Serial.println(weather.humidity);
+      Serial.print("weather.grnd_level ");
+      Serial.println(weather.grnd_level);
+      Serial.print("weather.visibility ");
+      Serial.println(weather.visibility);
+      Serial.print("weather.speed ");
+      Serial.println(weather.speed);
+      Serial.print("weather.deg ");
+      Serial.println(weather.deg);
+      Serial.print("weather.gust ");
+      Serial.println(weather.gust);
+      Serial.print("weather.dt ");
+      Serial.println(weather.dt);
+      Serial.print("weather.country ");
+      Serial.println(weather.country);
+      Serial.print("weather.sunrise ");
+      Serial.println(weather.sunrise);
+      Serial.print("weather.sunset ");
+      Serial.println(weather.sunset);
+      Serial.print("weather.id ");
+      Serial.println(weather.id);
+      Serial.print("weather.name ");
+      Serial.println(weather.name);
+#endif
+      client.stop();
+      http.end();
+    }
+    else
+    {
+      Serial.println("Connection failed");
+      client.stop();
+      http.end();
+    }
+  }
+} // end getWeather
+String WindDeg_Direction(int Wind_direction)
+{
+  if (Wind_direction >= 338 || Wind_direction < 22)
+    return Wind_N; //"Северный";
+  if (Wind_direction >= 22 && Wind_direction < 68)
+    return Wind_NE; //"Северо-Восточный";
+  if (Wind_direction >= 68 && Wind_direction < 112)
+    return Wind_E; //"Восточный";
+  if (Wind_direction >= 112 && Wind_direction < 158)
+    return Wind_SE; //"Юго-Восточный";
+  if (Wind_direction >= 158 && Wind_direction < 202)
+    return Wind_S; //"Южный";
+  if (Wind_direction >= 202 && Wind_direction < 248)
+    return Wind_SW; //"Юго-Западный";
+  if (Wind_direction >= 248 && Wind_direction < 292)
+    return Wind_W; //"Западный";
+  if (Wind_direction >= 292 && Wind_direction < 338)
+    return Wind_NW; //"Северо-Западный";
+  return " ?";
+} // end WindDeg_Direction
+
+void ircontrol()
+{
+  /*
+    Key17 key = irController.getKey();
+    if (key != Key17::NONE)
+    {
+      switch (key)
+      {
+      case Key17::KEY_1:
+        NEWStation = 1;
+        Serial.println("1");
+
+        // TODO: YOUR CONTROL
+        break;
+
+      case Key17::KEY_2:
+        NEWStation = 2;
+        Serial.println("2");
+        // TODO: YOUR CONTROL
+        break;
+      case Key17::KEY_3:
+        NEWStation = 3;
+        Serial.println("3");
+        // TODO: YOUR CONTROL
+        break;
+      case Key17::KEY_4:
+        NEWStation = 4;
+        Serial.println("4");
+
+        break;
+      case Key17::KEY_5:
+        NEWStation = 5;
+        Serial.println("5");
+        break;
+      case Key17::KEY_6:
+        NEWStation = 6;
+        Serial.println("6");
+        // TODO: YOUR CONTROL
+        break;
+      case Key17::KEY_7:
+        NEWStation = 7;
+        Serial.println("7");
+        // TODO: YOUR CONTROL
+        break;
+      case Key17::KEY_8:
+        NEWStation = 8;
+        Serial.println("8");
+        // TODO: YOUR CONTROL
+        break;
+      case Key17::KEY_9:
+        NEWStation = 9;
+        Serial.println("9");
+        // TODO: YOUR CONTROL
+        break;
+      case Key17::KEY_STAR:
+        Serial.println("*");
+
+        break;
+      case Key17::KEY_0:
+        NEWStation = 0;
+        Serial.println("0");
+        break;
+      case Key17::KEY_SHARP:
+        switch (showRadio)
+        {
+        case 3:
+          showRadio = 0;
+          first = true;
+          tft.fillRect(70, 53, 196, ypos - 55, TFT_BLACK);
+          printStation(NEWStation);
+          getClock = true; // получить время при переходе от меню станций
+          break;
+        case 0:
+          showRadio = 3;
+          clockAnalog();
+          break;
+        default:
+          break;
+        }
+        Serial.println("#");
+        break;
+      case Key17::KEY_UP:
+        if (showRadio == 0 || showRadio == 3)
+        {
+          stations = true;
+          nextStation(stations);
+          printStation(NEWStation);
+        }
+        if (showRadio == 1)
+        {
+          stations = false; // вниз по меню
+          first = true;
+          nextStation(stations);
+          stationDisplay(NEWStation);
+          currentMillis = millis(); // Пока ходим по меню
+        }
+        break;
+
+      case Key17::KEY_DOWN:
+        if (showRadio == 0 || showRadio == 3)
+        {
+          stations = false;
+          nextStation(stations);
+          printStation(NEWStation);
+        }
+        if (showRadio == 1)
+        {
+          stations = true; // вверх по меню
+          nextStation(stations);
+          stationDisplay(NEWStation);
+          currentMillis = millis(); // Пока ходим по меню
+          first = true;
+        }
+        break;
+      case Key17::KEY_LEFT:
+        volume--;
+        audio.setVolume(volume);
+        filePosition();
+        // TODO: YOUR CONTROL
+        break;
+      case Key17::KEY_RIGHT:
+        volume++;
+        audio.setVolume(volume);
+        filePosition();
+        // TODO: YOUR CONTROL
+        break;
+      case Key17::KEY_OK:
+        switch (showRadio)
+        {
+        case 0:
+          showRadio = 1;
+          break;
+        case 1:
+          showRadio = 0;
+          break;
+        case 3:
+          showRadio = 0;
+          break;
+        default:
+          break;
+        }
+        f_startProgress = true; // for starting
+        if (showRadio == 1)
+        {
+          currentMillis = millis(); // начало отсчета времени простоя
+          tft.fillRect(0, 0, 320, ypos + 14, TFT_BLACK);
+          stationDisplay(NEWStation);
+          first = true;
+        }
+        if (showRadio == 0)
+        {
+          first = true;
+          tft.fillRect(0, 0, 320, ypos + 8, TFT_BLACK);
+          printStation(NEWStation);
+          getClock = true; // получить время при переходе от меню станций
+        }
+        Serial.println("OK");
+        break;
+      default:
+        Serial.println("WARNING: undefined key:");
+        break;
+      }
+    }*/
+}
+void audio_bitrate(const char *info)
+{
+  // Serial.print("bitrate     ");
+  Serial.println(info);
+  bitrate = info;
+}
+
+//-----Clock
+void clockAnalog()
+{
+  tft.fillRect(70, 53, 190, ypos - 50, TFT_BLACK);
+  tft.fillRoundRect(clockX - 76, clockY - 64, 147, 128, 15, TFT_GREENYELLOW); //
+  tft.drawRoundRect(clockX - 72, clockY - 62, 142, 124, 15, TFT_MAGENTA);     //
+  tft.fillCircle(clockX - 55, clockY - 50, 5, TFT_RED);                       // левый верхний угол
+  tft.fillCircle(clockX + 55, clockY - 50, 5, TFT_RED);                       // правый верхний угол
+  tft.fillCircle(clockX - 55, clockY + 50, 5, TFT_RED);                       // левый нижний угол
+  tft.fillCircle(clockX + 55, clockY + 50, 5, TFT_RED);                       // правы нижний угол
+  // tft.fillCircle(clockX, clockY, 62, TFT_CYAN);
+  tft.fillCircle(clockX, clockY, 57, TFT_BLACK);
+
+  for (int i = 0; i < 360; i += 30)
+  {
+    sx = cos((i - 90) * 0.0174532925);
+    sy = sin((i - 90) * 0.0174532925);
+    x0 = sx * 55 + clockX;
+    yy0 = sy * 55 + clockY;
+    x1 = sx * 50 + clockX;
+    yy1 = sy * 50 + clockY;
+
+    tft.drawLine(x0, yy0, x1, yy1, TFT_GREEN);
+  }
+  // Draw 60 dots
+  // tft.setFreeFont(&FreeMonoBold8pt8b);
+  tft.setTextSize(1);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.setFreeFont(RU8);
+  for (int i = 0; i < 360; i += 6)
+  {
+    sx = cos((i - 90) * 0.0174532925);
+    sy = sin((i - 90) * 0.0174532925);
+    x0 = sx * 50 + clockX;
+    yy0 = sy * 50 + clockY;
+    // Draw minute markers
+
+    tft.drawPixel(x0, yy0, TFT_YELLOW);
+
+    // Draw main quadrant dots
+    if (i == 0 || i == 180)
+      tft.fillCircle(x0, yy0, 2, TFT_WHITE);
+    if (i == 90 || i == 270)
+      tft.fillCircle(x0, yy0, 2, TFT_WHITE);
+
+    switch (i)
+    {
+    case 0:
+      tft.drawString("12", x0 - 7, yy0 - 7);
+      break;
+    case 90:
+      tft.drawString("3", x0 - 4, yy0 - 5);
+      break;
+    case 180:
+      tft.drawString("6", x0 - 7, yy0 - 7);
+      break;
+    case 270:
+      tft.drawString("9", x0 - 6, yy0 - 7);
+      break;
+    default:
+      break;
+    }
+  }
+  tft.fillCircle(clockX, clockY, 3, TFT_WHITE);
+  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+  tft.setFreeFont(RU8);
+  tft.drawString(String(weather.temp, 1) + "`C", clockX - 20, clockY + 15);
+  targetTime = millis() + 1000;
+}
+
+void clockLoop()
+{
+
+  ntp.tick();
+  delay(2);
+  hh = ntp.hour();
+  mm = ntp.minute();
+  ss = ntp.second();
+  // CurrentDate = ntp.dateString();
+  // CurrentWeek = ntp.dayWeek();
+
+  if (targetTime < millis())
+  {
+    targetTime += 1000;
+    tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+    tft.setFreeFont(RU8);
+    tft.drawString(String(weather.temp, 1) + "`C", clockX - 20, clockY + 15);
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+
+    tft.drawString(String(hh) + ":" + String(mm) + ":" + String(ss), clockX - 39, clockY - 25);
+
+    ss++; // Advance second
+    if (ss == 60)
+    {
+      ss = 0;
+      mm++; // Advance minute
+      if (mm > 59)
+      {
+        mm = 0;
+        hh++; // Advance hour
+        if (hh > 23)
+        {
+          hh = 0;
+        }
+      }
+    }
+
+    // Pre-compute hand degrees, x & y coords for a fast screen update
+    sdeg = ss * 6;                     // 0-59 -> 0-354
+    mdeg = mm * 6 + sdeg * 0.01666667; // 0-59 -> 0-360 - includes seconds
+    hdeg = hh * 30 + mdeg * 0.0833333; // 0-11 -> 0-360 - includes minutes and seconds
+    hx = cos((hdeg - 90) * 0.0174532925);
+    hy = sin((hdeg - 90) * 0.0174532925);
+    mx = cos((mdeg - 90) * 0.0174532925);
+    my = sin((mdeg - 90) * 0.0174532925);
+    sx = cos((sdeg - 90) * 0.0174532925);
+    sy = sin((sdeg - 90) * 0.0174532925);
+
+    if (ss == 0 || initial)
+    {
+      initial = 0;
+      // Erase hour and minute hand positions every minute
+      tft.drawLine(ohx, ohy, clockX, clockY, TFT_BLACK);
+      ohx = hx * 32 + clockX;
+      ohy = hy * 32 + clockY;
+      tft.drawLine(omx, omy, clockX, clockY, TFT_BLACK);
+      omx = mx * 40 + clockX;
+      omy = my * 40 + clockY;
+    }
+
+    // Redraw new hand positions, hour and minute hands not erased here to avoid flicker
+    tft.drawLine(osx, osy, clockX, clockY, TFT_BLACK);
+    osx = sx * 48 + clockX;
+    osy = sy * 48 + clockY;
+    tft.drawLine(osx, osy, clockX, clockY, TFT_RED);
+
+    tft.drawLine(ohx, ohy, clockX, clockY, TFT_WHITE);
+
+    tft.drawLine(omx, omy, clockX, clockY, TFT_WHITE);
+    tft.drawLine(osx, osy, clockX, clockY, TFT_RED);
+
+    tft.fillCircle(clockX, clockY, 3, TFT_RED);
+  }
+  //-----------------
+}
+void print_Img(int x, int y, String WeaIcon)
+{
+  int w, h;
+  w = 60;
+  h = 60;
+  if (WeaIcon == "01d")
+    tft.pushImage(x, y, w, h, img_01d);
+  else if (WeaIcon == "01n")
+    tft.pushImage(x, y, w, h, img_01n);
+  else if (WeaIcon == "02d")
+    tft.pushImage(x, y, w, h, img_02d);
+  else if (WeaIcon == "02n")
+    tft.pushImage(x, y, w, h, img_02n);
+  else if (WeaIcon == "03d" || WeaIcon == "03n")
+    tft.pushImage(x, y, w, h, img_03dn);
+  else if (WeaIcon == "04d" || WeaIcon == "04n")
+    tft.pushImage(x, y, w, h, img_04dn);
+  else if (WeaIcon == "09d" || WeaIcon == "09n")
+    tft.pushImage(x, y, w, h, img_09dn);
+  else if (WeaIcon == "10d" || WeaIcon == "10n")
+    tft.pushImage(x, y, w, h, img_10dn);
+  else if (WeaIcon == "11d" || WeaIcon == "11n")
+    tft.pushImage(x, y, w, h, img_11dn);
+  else if (WeaIcon == "13d" || WeaIcon == "13n")
+    tft.pushImage(x, y, w, h, img_13dn);
+  else if (WeaIcon == "50d" || WeaIcon == "50n")
+    tft.pushImage(x, y, w, h, img_50dn);
+  Serial.println("Icon name: " + WeaIcon);
+} // print_Img
